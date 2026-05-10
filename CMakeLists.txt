@@ -18,11 +18,23 @@ target_sources(OraclePad PRIVATE
     Source/PluginProcessor.cpp
     Source/PluginEditor.cpp)
 
-target_link_libraries(OraclePad PRIVATE
-    JUCE_build)
-
+target_link_libraries(OraclePad
+    PRIVATE
+        juce::juce_audio_utils    # ADD THIS
+        juce::juce_audio_devices  # ADD THIS
+        juce::juce_audio_processors
+        juce::juce_gui_basics
+        juce::juce_graphics
+        juce::juce_events
+        juce::juce_core
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags)
 target_compile_definitions(OraclePad PRIVATE
     JUCE_WEB_BROWSER=0
-    JUCE_USE_CURL=0)
+    JUCE_USE_CURL=0
+    JUCE_VST3_CAN_REPLACE_VST2=0  
+)
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)

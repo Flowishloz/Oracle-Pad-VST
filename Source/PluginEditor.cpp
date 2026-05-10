@@ -1,18 +1,41 @@
-<![CDATA[
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
+//==============================================================================
+// THE CONSTRUCTOR: Creates the UI elements
 OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p) { setSize (400, 300); }
+    : AudioProcessorEditor (&p), audioProcessor (p) 
+{
+    // Configure the Slider
+    gainSlider.setSliderStyle(juce::Slider::LinearVertical);
+    gainSlider.setRange(0.0, 1.0, 0.01);
+    gainSlider.setValue(0.5);
+    addAndMakeVisible(gainSlider);
 
-OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor() {}
+    // Configure the Label
+    statusLabel.setText("OraclePad: Standby", juce::dontSendNotification);
+    statusLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(statusLabel);
 
-void OraclePadAudioProcessorEditor::paint (juce::Graphics& g) {
-    g.fillAll (juce::Colours::black);
-    g.setColour (juce::Colours::cyan);
-    g.setFont (24.0f);
-    g.drawFittedText ("ORACLE PAD", getLocalBounds(), juce::Justification::centred, 1);
+    // Set the window size
+    setSize (400, 300);
 }
 
-void OraclePadAudioProcessorEditor::resized() {}
-]]>
+// THE DESTRUCTOR
+OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor() 
+{
+}
+
+//==============================================================================
+// THE PAINTER: Colors the background
+void OraclePadAudioProcessorEditor::paint (juce::Graphics& g) 
+{
+    g.fillAll (juce::Colours::black); 
+}
+
+// THE RESIZER: Places the elements on the screen
+void OraclePadAudioProcessorEditor::resized() 
+{
+    gainSlider.setBounds(20, 20, 50, 260);
+    statusLabel.setBounds(100, 130, 200, 40);
+}
