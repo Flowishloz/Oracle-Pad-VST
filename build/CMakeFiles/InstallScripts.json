@@ -1,0 +1,11 @@
+{
+	"InstallScripts" : 
+	[
+		"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/cmake_install.cmake",
+		"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/JUCE_build/cmake_install.cmake",
+		"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/JUCE_build/modules/cmake_install.cmake",
+		"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/JUCE_build/extras/Build/cmake_install.cmake",
+		"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/JUCE_build/extras/Build/juceaide/cmake_install.cmake"
+	],
+	"Parallel" : false
+}
