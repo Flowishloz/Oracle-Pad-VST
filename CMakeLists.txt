@@ -24,6 +24,7 @@ target_link_libraries(OraclePad
         juce::juce_audio_utils
         juce::juce_audio_devices
         juce::juce_audio_processors
+        juce::juce_dsp
         juce::juce_gui_basics
         juce::juce_graphics
         juce::juce_events
