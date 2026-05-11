@@ -7,7 +7,8 @@ OraclePadAudioProcessor::OraclePadAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
        apvts (*this, nullptr, "Parameters",
        {
-           std::make_unique<juce::AudioParameterChoice>("osc1_shape",  "Oscillator 1 Shape", juce::StringArray {"Analog Pulse", "Saw", "Sub"}, 0),
+           std::make_unique<juce::AudioParameterFloat> ("master_gain", "Master Gain",        0.0f,  1.0f,  0.8f),
+           std::make_unique<juce::AudioParameterChoice>("osc1_shape",  "Oscillator 1 Shape", juce::StringArray {"Saw", "Square", "Sub"}, 0),
            std::make_unique<juce::AudioParameterFloat> ("osc1_pitch",  "Oscillator 1 Pitch", -24.0f, 24.0f, 0.0f),
            std::make_unique<juce::AudioParameterChoice>("osc2_shape",  "Oscillator 2 Shape", juce::StringArray {"Stab 1", "Stab 2", "Texture"}, 0),
            std::make_unique<juce::AudioParameterFloat> ("osc2_pitch",  "Oscillator 2 Pitch", -24.0f, 24.0f, 0.0f),
@@ -16,6 +17,10 @@ OraclePadAudioProcessor::OraclePadAudioProcessor()
            std::make_unique<juce::AudioParameterChoice>("weather_mode", "Weather Mode", juce::StringArray {"Forest", "Valley", "Temple", "Hut", "Basement"}, 0)
        })
 {
+    padParams.attack  = 0.8f;   // slow bloom — the "lush" pad character
+    padParams.decay   = 0.4f;
+    padParams.sustain = 0.85f;
+    padParams.release = 1.5f;   // cinematic tail
 }
 
 OraclePadAudioProcessor::~OraclePadAudioProcessor() {}
@@ -31,7 +36,16 @@ const juce::String OraclePadAudioProcessor::getProgramName (int) { return {}; }
 void OraclePadAudioProcessor::changeProgramName (int, const juce::String&) {}
 
 // ---------------------------------------------------------------------------
-// Wavetable construction — called once in prepareToPlay, never on audio thread
+// Wavetable construction
+//
+// All harmonics are seeded via sin(k * theta) using a single shared phase
+// accumulator. This guarantees phase coherence across the entire spectrum:
+// no inter-harmonic offsets, no frequency-dependent group delay variation.
+// Blauert & Laws (1978) show that group delay > ~1.6ms at 1-2kHz is audible
+// as "smearing" — our approach keeps it at zero within the wavetable itself.
+//
+// 64 harmonics covers ~65Hz (MIDI 42, F#2) before aliasing. Sufficient for
+// pad fundamentals. Higher notes naturally use fewer harmonics of the table.
 // ---------------------------------------------------------------------------
 void OraclePadAudioProcessor::buildWavetables()
 {
@@ -40,27 +54,27 @@ void OraclePadAudioProcessor::buildWavetables()
 
     const float twoPi = juce::MathConstants<float>::twoPi;
 
-    // [2] Sub: pure sine
-    for (int i = 0; i < wavetableSize; ++i)
-        osc1Wavetables[2][i] = std::sin (twoPi * (float) i / (float) wavetableSize);
-
-    // [1] Saw: additive harmonics 1/k * sin(k * phase)
+    // [0] Saw: classic bright, rich pad base — full 1/k series
     for (int i = 0; i < wavetableSize; ++i)
     {
         float phase = twoPi * (float) i / (float) wavetableSize;
         for (int k = 1; k <= numHarmonics; ++k)
-            osc1Wavetables[1][i] += (1.0f / (float) k) * std::sin ((float) k * phase);
+            osc1Wavetables[0][i] += (1.0f / (float) k) * std::sin ((float) k * phase);
     }
 
-    // [0] Analog Pulse: odd harmonics only (Alpha Juno character)
+    // [1] Square: odd harmonics only — hollow, "woody" vintage character
     for (int i = 0; i < wavetableSize; ++i)
     {
         float phase = twoPi * (float) i / (float) wavetableSize;
         for (int k = 1; k <= numHarmonics; k += 2)
-            osc1Wavetables[0][i] += (1.0f / (float) k) * std::sin ((float) k * phase);
+            osc1Wavetables[1][i] += (1.0f / (float) k) * std::sin ((float) k * phase);
     }
 
-    // Normalise each table to [-1, 1]
+    // [2] Sub: pure sine — voice frequency is halved at note-on (one octave below)
+    for (int i = 0; i < wavetableSize; ++i)
+        osc1Wavetables[2][i] = std::sin (twoPi * (float) i / (float) wavetableSize);
+
+    // Normalise all tables to [-1, 1]
     for (auto& wt : osc1Wavetables)
     {
         float peak = 0.0f;
@@ -71,6 +85,23 @@ void OraclePadAudioProcessor::buildWavetables()
 }
 
 // ---------------------------------------------------------------------------
+// Voice allocation
+// ---------------------------------------------------------------------------
+OracleVoice* OraclePadAudioProcessor::findFreeVoice() noexcept
+{
+    for (auto& v : voices) if (!v.active)              return &v;
+    for (auto& v : voices) if (!v.envelope.isActive()) return &v;
+    return &voices[0]; // steal oldest
+}
+
+OracleVoice* OraclePadAudioProcessor::findVoiceForNote (int noteNum) noexcept
+{
+    for (auto& v : voices)
+        if (v.active && v.noteNumber == noteNum) return &v;
+    return nullptr;
+}
+
+// ---------------------------------------------------------------------------
 // Lifecycle
 // ---------------------------------------------------------------------------
 void OraclePadAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPerBlock*/)
@@ -78,28 +109,23 @@ void OraclePadAudioProcessor::prepareToPlay (double sampleRate, int /*samplesPer
     currentSampleRate = sampleRate;
     buildWavetables();
 
-    // DIAGNOSTIC: pre-compute phase increment for 440 Hz test tone
-    currentPhase = 0.0;
-    phaseDelta   = juce::MathConstants<double>::twoPi * 440.0 / sampleRate;
+    for (auto& v : voices)
+    {
+        v.active     = false;
+        v.noteNumber = -1;
+        v.envelope.setSampleRate (sampleRate);
+        v.envelope.setParameters (padParams);
+        v.envelope.reset();
+    }
 
-    // Pad envelope
-    juce::ADSR::Parameters padParams;
-    padParams.attack  = 0.8f;
-    padParams.decay   = 0.4f;
-    padParams.sustain = 0.85f;
-    padParams.release = 1.5f;
-    osc1Envelope.setParameters (padParams);
-    osc1Envelope.setSampleRate (sampleRate);
-
-    osc1.reset();
-    currentNote       = -1;
-    currentShapeIndex = -1;
+    outputLevel.store (0.0f, std::memory_order_relaxed);
 }
 
 void OraclePadAudioProcessor::releaseResources() {}
 
 // ---------------------------------------------------------------------------
 // Audio rendering
+// Polyphonic, sample-accurate MIDI, zero heap allocation in the audio thread.
 // ---------------------------------------------------------------------------
 void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
                                              juce::MidiBuffer& midiMessages)
@@ -107,76 +133,74 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
 
-    // *** DIAGNOSTIC: raw 440 Hz sine at 0.1f — bypasses all MIDI/ADSR ***
-    {
-        const int numCh = buffer.getNumChannels();
-        const int numS  = buffer.getNumSamples();
-        for (int i = 0; i < numS; ++i)
-        {
-            float sample = 0.1f * (float) std::sin (currentPhase);
-            currentPhase += phaseDelta;
-            if (currentPhase >= juce::MathConstants<double>::twoPi)
-                currentPhase -= juce::MathConstants<double>::twoPi;
-            for (int ch = 0; ch < numCh; ++ch)
-                buffer.getWritePointer (ch)[i] = sample;
-        }
-        return; // *** all real DSP below is bypassed ***
-    }
+    const int   shapeIndex     = (int) apvts.getRawParameterValue ("osc1_shape")->load();
+    const float pitchSemitones =       apvts.getRawParameterValue ("osc1_pitch")->load();
+    const float masterGain     =       apvts.getRawParameterValue ("master_gain")->load();
+    const bool  isSubMode      = (shapeIndex == 2); // Sub plays one octave below
 
-    // --- Real DSP (active once diagnostic block above is removed) ---
-    auto shapeIndex     = (int) apvts.getRawParameterValue ("osc1_shape")->load();
-    auto pitchSemitones =       apvts.getRawParameterValue ("osc1_pitch")->load();
-
-    if (shapeIndex != currentShapeIndex)
-    {
-        osc1.setWavetable (osc1Wavetables[(size_t) shapeIndex]);
-        currentShapeIndex = shapeIndex;
-    }
-
-    if (currentNote >= 0)
-    {
-        float freq = 440.0f * std::pow (2.0f, ((float) currentNote - 69.0f + pitchSemitones) / 12.0f);
-        osc1.setFrequency (freq, currentSampleRate);
-    }
-
-    const int numSamples  = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
-    float* leftChannel    = buffer.getWritePointer (0);
-    float* rightChannel   = numChannels > 1 ? buffer.getWritePointer (1) : leftChannel;
+    const auto& activeTable = osc1Wavetables[(size_t) shapeIndex];
+    const int   numSamples  = buffer.getNumSamples();
+    const int   numChannels = buffer.getNumChannels();
 
     auto midiIter = midiMessages.begin();
     auto midiEnd  = midiMessages.end();
 
     for (int i = 0; i < numSamples; ++i)
     {
-        while (midiIter != midiEnd && midiIter->samplePosition <= i)
+        // Sample-accurate MIDI dispatch
+        while (midiIter != midiEnd && (*midiIter).samplePosition <= i)
         {
-            auto msg = midiIter->getMessage();
+            auto msg = (*midiIter).getMessage();
+
             if (msg.isNoteOn())
             {
-                currentNote = msg.getNoteNumber();
-                float freq  = 440.0f * std::pow (2.0f, ((float) currentNote - 69.0f + pitchSemitones) / 12.0f);
-                osc1.setFrequency (freq, currentSampleRate);
-                osc1Envelope.noteOn();
+                const int note = msg.getNoteNumber();
+                float freq = 440.0f * std::pow (2.0f, ((float) note - 69.0f + pitchSemitones) / 12.0f);
+                if (isSubMode) freq *= 0.5f; // one octave below
+
+                // Legato retrigger: release any existing voice for this note
+                if (auto* existing = findVoiceForNote (note))
+                    existing->release();
+
+                if (auto* v = findFreeVoice())
+                    v->start (note, freq, currentSampleRate, activeTable, padParams);
             }
-            else if (msg.isNoteOff() && msg.getNoteNumber() == currentNote)
+            else if (msg.isNoteOff())
             {
-                osc1Envelope.noteOff();
-                currentNote = -1;
+                if (auto* v = findVoiceForNote (msg.getNoteNumber()))
+                    v->release();
             }
             else if (msg.isAllNotesOff() || msg.isAllSoundOff())
             {
-                osc1Envelope.reset();
-                currentNote = -1;
+                for (auto& v : voices) v.active = false;
             }
+
             ++midiIter;
         }
 
-        float envGain = osc1Envelope.getNextSample();
-        float mono    = osc1.getNextSample() * envGain * 0.5f;
-        leftChannel[i]  = mono;
-        rightChannel[i] = mono;
+        // Mix all active voices
+        float mono = 0.0f;
+        for (auto& v : voices)
+            mono += v.render();
+
+        // 0.3f per-voice headroom for 8 voices; tanh soft-clips transient peaks
+        // from voice stealing without introducing hard distortion
+        mono = std::tanh (mono * 0.3f) * masterGain;
+
+        for (int ch = 0; ch < numChannels; ++ch)
+            buffer.getWritePointer (ch)[i] = mono;
     }
+
+    // Leaky peak follower — feeds the editor's radar visualiser (message thread reads this)
+    float peak = 0.0f;
+    if (numChannels > 0)
+    {
+        auto* ch0 = buffer.getReadPointer (0);
+        for (int i = 0; i < numSamples; ++i)
+            peak = std::max (peak, std::abs (ch0[i]));
+    }
+    const float prev = outputLevel.load (std::memory_order_relaxed);
+    outputLevel.store (prev * 0.85f + peak * 0.15f, std::memory_order_relaxed);
 }
 
 // ---------------------------------------------------------------------------

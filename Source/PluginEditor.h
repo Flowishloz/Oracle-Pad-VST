@@ -106,26 +106,29 @@ public:
 // ==============================================================================
 // MAIN EDITOR CLASS
 // ==============================================================================
-class OraclePadAudioProcessorEditor : public juce::AudioProcessorEditor 
+class OraclePadAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                       public juce::Timer
 {
 public:
     OraclePadAudioProcessorEditor (OraclePadAudioProcessor&);
     ~OraclePadAudioProcessorEditor() override;
     void paint (juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
 private:
     OraclePadAudioProcessor& audioProcessor;
-    
-    // The Skeuomorphic Knobs
-    juce::Slider gainKnob; 
 
-    // Our Custom Look and Feel instance
+    // gainKnob must be declared before gainAttachment (initialisation order)
+    juce::Slider gainKnob;
+    juce::AudioProcessorValueTreeState::SliderAttachment gainAttachment;
     SkeuomorphicLookAndFeel customLookAndFeel;
 
     juce::Label statusLabel;
     juce::Label bannerLabel, osc1Label, osc2Label, arpLabel, radarLabel, globalSettingsLabel;
     juce::Colour cyberBlue = juce::Colour(0xFF00F0FF);
+
+    float lastOutputLevel = 0.0f; // used by timerCallback to detect changes
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OraclePadAudioProcessorEditor)
 };

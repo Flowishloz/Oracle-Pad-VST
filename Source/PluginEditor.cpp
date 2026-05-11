@@ -2,180 +2,187 @@
 #include "PluginEditor.h"
 
 OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProcessor& p)
-    : AudioProcessorEditor (&p), audioProcessor (p)
+    : AudioProcessorEditor (&p),
+      audioProcessor (p),
+      gainAttachment (p.apvts, "master_gain", gainKnob)  // binds knob to APVTS parameter
 {
-    // Use standard clear fonts for faceplate text (looks printed/engraved)
     auto setupFaceplateLabel = [this](juce::Label& l, juce::String text, float size) {
-        l.setText(text, juce::dontSendNotification);
+        l.setText (text, juce::dontSendNotification);
         l.setFont (juce::FontOptions ("Futura", size, juce::Font::bold));
-        l.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.6f));
-        addAndMakeVisible(l);
+        l.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.6f));
+        addAndMakeVisible (l);
     };
 
-    setupFaceplateLabel(osc1Label, "OSC 1: WAVE", 13.0f);
-    setupFaceplateLabel(osc2Label, "OSC 2: SAMPLER", 13.0f);
-    setupFaceplateLabel(arpLabel, "ORACLE ARPEGGIATOR", 13.0f);
-    setupFaceplateLabel(globalSettingsLabel, "GLOBAL SETTINGS", 11.0f);
-
-    // Use distinct "Retro Tech" font for Screen Titles (Banner & Radar)
     auto setupScreenLabel = [this](juce::Label& l, juce::String text, float size) {
-        l.setText(text, juce::dontSendNotification);
-        l.setFont (juce::FontOptions ("Futura", size, juce::Font::bold)); 
-        l.setColour(juce::Label::textColourId, juce::Colours::white.withAlpha(0.8f));
-        addAndMakeVisible(l);
+        l.setText (text, juce::dontSendNotification);
+        l.setFont (juce::FontOptions ("Futura", size, juce::Font::bold));
+        l.setColour (juce::Label::textColourId, juce::Colours::white.withAlpha (0.8f));
+        addAndMakeVisible (l);
     };
 
-    setupScreenLabel(bannerLabel, "ORACLE DISPLAY // SYSTEM ACTIVE", 18.0f);
-    setupScreenLabel(radarLabel, "SPATIAL RADAR", 14.0f);
+    setupScreenLabel  (bannerLabel,         "ORACLE DISPLAY // SYSTEM ACTIVE", 18.0f);
+    setupScreenLabel  (radarLabel,          "SPATIAL RADAR",                   14.0f);
+    setupFaceplateLabel (osc1Label,         "OSC 1: WAVE",                     13.0f);
+    setupFaceplateLabel (osc2Label,         "OSC 2: SAMPLER",                  13.0f);
+    setupFaceplateLabel (arpLabel,          "ORACLE ARPEGGIATOR",              13.0f);
+    setupFaceplateLabel (globalSettingsLabel,"GLOBAL SETTINGS",                11.0f);
 
-    // Configure the main knob (skeuomorphic) - renamed to gainKnob!
     gainKnob.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     gainKnob.setTextBoxStyle (juce::Slider::NoTextBox, false, 0, 0);
-    gainKnob.setRange(0.0, 1.0, 0.01);
-    gainKnob.setValue(0.5);
-    gainKnob.setTextValueSuffix (" dB");
-    // CRITICAL: Attach the custom look and feel
     gainKnob.setLookAndFeel (&customLookAndFeel);
-    addAndMakeVisible(gainKnob);
+    addAndMakeVisible (gainKnob);
 
     setSize (900, 500);
+    startTimerHz (20); // 20fps — matches retro hardware display refresh rate
 }
 
 OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor()
 {
-    // Detach look and feel on destruction
+    stopTimer();
     gainKnob.setLookAndFeel (nullptr);
 }
 
-void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
+// ---------------------------------------------------------------------------
+// Timer — reads audio level and triggers a repaint when it changes
+// ---------------------------------------------------------------------------
+void OraclePadAudioProcessorEditor::timerCallback()
 {
-    // *** DIAGNOSTIC: proves the DAW loaded this build — remove after confirmed ***
-    g.fillAll (juce::Colours::red);
-    return;
-    // *** END DIAGNOSTIC ***
-
-    auto& random = juce::Random::getSystemRandom();
-
-    // 1. The Main Hardware Chassis (Dark cold metal gradient)
-    juce::ColourGradient chassis(juce::Colour(0xff2A2D34), 0, 0, juce::Colour(0xff111215), 0, (float)getHeight(), false);
-    chassis.addColour(0.5, juce::Colour(0xff1A1C20)); // Subtle central rise
-    g.setGradientFill(chassis);
-    g.fillAll();
-
-    // --- NEW: Add physical texture (brushed metal grain/noise) ---
-    for (int i = 0; i < 5000; ++i)
+    float level = audioProcessor.outputLevel.load (std::memory_order_relaxed);
+    if (std::abs (level - lastOutputLevel) > 0.005f)
     {
-        auto x = random.nextInt (getWidth());
-        auto y = random.nextInt (getHeight());
-        auto noiseAlpha = random.nextFloat() * 0.03f; // Very subtle
-        g.setColour (juce::Colours::black.withAlpha (noiseAlpha));
-        g.drawHorizontalLine (y, (float)x, (float)x + random.nextInt(4));
+        lastOutputLevel = level;
+        repaint();
     }
-
-    // 2. Chassis Bevel / Top Highlight (Light catching top edge)
-    g.setColour(juce::Colours::white.withAlpha(0.1f));
-    g.drawHorizontalLine(0.0f, 0.0f, (float)getWidth());
-
-    // Layout Rects (Matching resized exactly)
-    auto bannerRect = getLocalBounds().removeFromTop(75).reduced(12);
-    auto area = getLocalBounds().withTrimmedTop(75);
-    auto leftArea = area.removeFromLeft((int)(area.getWidth() * 0.7f));
-    auto rightArea = area;
-
-    // Perfect Square Radar
-    auto spatialRadarRect = rightArea.removeFromTop(rightArea.getWidth()).reduced(12);
-
-    // 3. Hardware Panel Grooves (Instead of flat lines, we draw a dark line next to a light line)
-    auto drawHardwareGroove = [&](int x, int y, int width, int height) {
-        g.setColour(juce::Colours::black.withAlpha(0.6f));
-        g.fillRect(x, y, width, height);
-        g.setColour(juce::Colours::white.withAlpha(0.04f));
-        g.fillRect(x + 1, y + 1, width, height); // Offset highlight catching the other edge
-    };
-
-    // Vertical groove separating the left and right wings
-    drawHardwareGroove(leftArea.getRight() - 1, leftArea.getY(), 2, leftArea.getHeight());
-    // Horizontal groove under the banner
-    drawHardwareGroove(0, 75, getWidth(), 2);
-
-    // --- NEW: Physical 'Screw' details on the faceplate ---
-    auto drawScrew = [&](int x, int y) {
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
-        g.fillEllipse((float)x, (float)y, 6.0f, 6.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.1f));
-        g.drawEllipse((float)x+0.5f, (float)y+0.5f, 5.0f, 5.0f, 1.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.8f));
-        g.drawLine((float)x+1.5f, (float)y+3.0f, (float)x+4.5f, (float)y+3.0f, 1.0f); // Screw slot
-    };
-    drawScrew(10, 10);
-    drawScrew(getWidth()-16, 10);
-    drawScrew(10, getHeight()-16);
-    drawScrew(getWidth()-16, getHeight()-16);
-
-    // 4. The Recessed OEL Screen Generator
-    auto drawRecessedScreen = [&](juce::Rectangle<int> r) {
-        // The deep black screen pit
-        g.setColour(juce::Colour(0xff020202));
-        g.fillRoundedRectangle(r.toFloat(), 5.0f);
-
-        // Inner shadow (sunken depth)
-        g.setColour(juce::Colours::black.withAlpha(0.8f));
-        g.drawRoundedRectangle(r.toFloat(), 5.0f, 2.0f);
-
-        // Bottom plastic cutout lip catching light
-        g.setColour(juce::Colours::white.withAlpha(0.05f));
-        g.drawHorizontalLine(r.getBottom() + 1, (float)r.getX() + 2, (float)r.getRight() - 2);
-
-        // OEL Scan-lines
-        g.setColour(cyberBlue.withAlpha(0.03f));
-        for (int y = r.getY() + 2; y < r.getBottom() - 2; y += 3)
-            g.drawHorizontalLine(y, (float)r.getX() + 2, (float)r.getRight() - 2);
-
-        // 3D Glass Glare (curved plastic lens effect)
-        juce::ColourGradient glare(juce::Colours::white.withAlpha(0.06f), 0, (float)r.getY(),
-                                   juce::Colours::transparentWhite, 0, (float)(r.getY() + r.getHeight() * 0.45f), false);
-        g.setGradientFill(glare);
-        g.fillRoundedRectangle(r.withHeight((int)(r.getHeight() * 0.5f)).reduced(1).toFloat(), 5.0f);
-
-        // OEL Edge Glow
-        g.setColour(cyberBlue.withAlpha(0.2f));
-        g.drawRoundedRectangle(r.reduced(1).toFloat(), 4.0f, 1.0f);
-    };
-
-    drawRecessedScreen(bannerRect);
-    drawRecessedScreen(spatialRadarRect);
 }
 
+// ---------------------------------------------------------------------------
+// Paint — Chrome Core / Cassette Futurism chassis
+// ---------------------------------------------------------------------------
+void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
+{
+    auto& random = juce::Random::getSystemRandom();
+
+    // 1. Main hardware chassis — dark cold metal gradient
+    juce::ColourGradient chassis (juce::Colour (0xff2A2D34), 0, 0,
+                                  juce::Colour (0xff111215), 0, (float) getHeight(), false);
+    chassis.addColour (0.5, juce::Colour (0xff1A1C20));
+    g.setGradientFill (chassis);
+    g.fillAll();
+
+    // 2. Brushed metal grain — horizontal noise strokes
+    for (int i = 0; i < 5000; ++i)
+    {
+        float noiseAlpha = random.nextFloat() * 0.03f;
+        g.setColour (juce::Colours::black.withAlpha (noiseAlpha));
+        g.drawHorizontalLine (random.nextInt (getHeight()),
+                              (float) random.nextInt (getWidth()),
+                              (float) random.nextInt (getWidth()) + random.nextInt (4));
+    }
+
+    // 3. Top bevel — light catching the top edge
+    g.setColour (juce::Colours::white.withAlpha (0.1f));
+    g.drawHorizontalLine (0, 0.0f, (float) getWidth());
+
+    // Layout rects — must match resized() exactly
+    auto bannerRect = getLocalBounds().removeFromTop (75).reduced (12);
+    auto area       = getLocalBounds().withTrimmedTop (75);
+    auto leftArea   = area.removeFromLeft ((int) (area.getWidth() * 0.7f));
+    auto rightArea  = area;
+    auto spatialRadarRect = rightArea.removeFromTop (rightArea.getWidth()).reduced (12);
+
+    // 4. Hardware panel grooves — dark cut + offset light highlight
+    auto drawGroove = [&](int x, int y, int w, int h) {
+        g.setColour (juce::Colours::black.withAlpha (0.6f));
+        g.fillRect (x, y, w, h);
+        g.setColour (juce::Colours::white.withAlpha (0.04f));
+        g.fillRect (x + 1, y + 1, w, h);
+    };
+    drawGroove (leftArea.getRight() - 1, leftArea.getY(), 2, leftArea.getHeight());
+    drawGroove (0, 75, getWidth(), 2);
+
+    // 5. Corner screws
+    auto drawScrew = [&](int x, int y) {
+        g.setColour (juce::Colours::black.withAlpha (0.5f));
+        g.fillEllipse ((float) x, (float) y, 6.0f, 6.0f);
+        g.setColour (juce::Colours::white.withAlpha (0.1f));
+        g.drawEllipse ((float) x + 0.5f, (float) y + 0.5f, 5.0f, 5.0f, 1.0f);
+        g.setColour (juce::Colours::black.withAlpha (0.8f));
+        g.drawLine ((float) x + 1.5f, (float) y + 3.0f, (float) x + 4.5f, (float) y + 3.0f, 1.0f);
+    };
+    drawScrew (10, 10);
+    drawScrew (getWidth() - 16, 10);
+    drawScrew (10, getHeight() - 16);
+    drawScrew (getWidth() - 16, getHeight() - 16);
+
+    // 6. Recessed OEL screen — glowLevel drives radar pulse from audio output
+    const float glowLevel = juce::jlimit (0.0f, 1.0f, lastOutputLevel);
+
+    auto drawRecessedScreen = [&](juce::Rectangle<int> r, float glow) {
+        // Deep black screen pit
+        g.setColour (juce::Colour (0xff020202));
+        g.fillRoundedRectangle (r.toFloat(), 5.0f);
+
+        // Sunken inner shadow
+        g.setColour (juce::Colours::black.withAlpha (0.8f));
+        g.drawRoundedRectangle (r.toFloat(), 5.0f, 2.0f);
+
+        // Plastic lip catching light below screen
+        g.setColour (juce::Colours::white.withAlpha (0.05f));
+        g.drawHorizontalLine (r.getBottom() + 1, (float) r.getX() + 2, (float) r.getRight() - 2);
+
+        // OEL scan lines — brighten with audio level
+        float scanAlpha = 0.03f + glow * 0.09f;
+        g.setColour (cyberBlue.withAlpha (scanAlpha));
+        for (int y = r.getY() + 2; y < r.getBottom() - 2; y += 3)
+            g.drawHorizontalLine (y, (float) r.getX() + 2, (float) r.getRight() - 2);
+
+        // Glass glare — curved plastic lens reflection
+        juce::ColourGradient glare (juce::Colours::white.withAlpha (0.06f), 0, (float) r.getY(),
+                                    juce::Colours::transparentWhite, 0,
+                                    (float) (r.getY() + r.getHeight() * 0.45f), false);
+        g.setGradientFill (glare);
+        g.fillRoundedRectangle (r.withHeight ((int) (r.getHeight() * 0.5f)).reduced (1).toFloat(), 5.0f);
+
+        // OEL edge glow — pulses with audio level
+        float edgeAlpha = 0.2f + glow * 0.55f;
+        g.setColour (cyberBlue.withAlpha (edgeAlpha));
+        g.drawRoundedRectangle (r.reduced (1).toFloat(), 4.0f, 1.0f);
+
+        // Outer bloom halo when signal is active
+        if (glow > 0.04f)
+        {
+            g.setColour (cyberBlue.withAlpha (glow * 0.18f));
+            g.drawRoundedRectangle (r.toFloat().expanded (3.0f), 7.0f, 4.0f);
+        }
+    };
+
+    drawRecessedScreen (bannerRect,       0.0f);      // banner is static
+    drawRecessedScreen (spatialRadarRect, glowLevel); // radar pulses with audio
+}
+
+// ---------------------------------------------------------------------------
+// Layout
+// ---------------------------------------------------------------------------
 void OraclePadAudioProcessorEditor::resized()
 {
     auto area = getLocalBounds();
 
-    // Top Banner (Chooser)
-    auto bannerArea = area.removeFromTop(75);
-    bannerLabel.setBounds(bannerArea.reduced(20));
+    auto bannerArea = area.removeFromTop (75);
+    bannerLabel.setBounds (bannerArea.reduced (20));
 
-    // Left Wing (Generators) - 70% Width
-    auto leftArea = area.removeFromLeft((int)(area.getWidth() * 0.7f));
+    auto leftArea     = area.removeFromLeft ((int) (area.getWidth() * 0.7f));
     auto sectionHeight = leftArea.getHeight() / 3;
+    auto getLabelBounds = [](juce::Rectangle<int> r) { return r.reduced (20, 0).withX (r.getX() + 20); };
 
-    // Align text left for physical hardware look (padding: 20px)
-    auto getLabelBounds = [](juce::Rectangle<int> r) { return r.reduced(20, 0).withX(r.getX() + 20); };
+    osc1Label.setBounds (getLabelBounds (leftArea.removeFromTop (sectionHeight)));
+    osc2Label.setBounds (getLabelBounds (leftArea.removeFromTop (sectionHeight)));
+    arpLabel.setBounds  (getLabelBounds (leftArea));
 
-    osc1Label.setBounds(getLabelBounds(leftArea.removeFromTop(sectionHeight)));
-    osc2Label.setBounds(getLabelBounds(leftArea.removeFromTop(sectionHeight)));
-    arpLabel.setBounds(getLabelBounds(leftArea));
-
-    // Right Wing (Radar & Global) - 30% Width
     auto rightArea = area;
+    auto radarArea = rightArea.removeFromTop (rightArea.getWidth());
+    radarLabel.setBounds (radarArea.reduced (20));
 
-    // PERFECT SQUARE Radar area calculation matching paint()
-    auto radarArea = rightArea.removeFromTop(rightArea.getWidth());
-    radarLabel.setBounds(radarArea.reduced(20));
-
-    // Global Settings Area takes whatever is left at the bottom
     auto globalArea = rightArea;
-    globalSettingsLabel.setBounds(globalArea.removeFromTop(30).reduced(10, 0));
-
-    // Position the custom knob in the global area
-    gainKnob.setBounds(globalArea.reduced(15).withTrimmedBottom(10));
+    globalSettingsLabel.setBounds (globalArea.removeFromTop (30).reduced (10, 0));
+    gainKnob.setBounds (globalArea.reduced (15).withTrimmedBottom (10));
 }
