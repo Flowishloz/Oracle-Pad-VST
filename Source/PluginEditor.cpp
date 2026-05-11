@@ -49,6 +49,11 @@ OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor()
 
 void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
 {
+    // *** DIAGNOSTIC: proves the DAW loaded this build — remove after confirmed ***
+    g.fillAll (juce::Colours::red);
+    return;
+    // *** END DIAGNOSTIC ***
+
     auto& random = juce::Random::getSystemRandom();
 
     // 1. The Main Hardware Chassis (Dark cold metal gradient)
