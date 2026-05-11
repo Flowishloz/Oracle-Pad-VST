@@ -1,0 +1,36 @@
+ORACLE PAD VST: ATMOSPHERIC PAD GENERATOR
+Vibe: A Y2K cyber-nostalgic synthesizer housed in a brushed-aluminum interface, featuring a glowing, low-refresh-rate "Cyber Blue" display. Philosophy: Designed specifically for 90s Intelligent Jungle and Ambient DnB. It rejects high-CPU "clinical perfection" by utilizing baked-in, heuristic approximations of psychoacoustic physics. It is ultra-lightweight, phase-safe, and standalone—built for pure vibe and instant inspiration.
+
+1. THE DUAL-DNA OSCILLATOR WING (LEFT WING)
+The OEL-90 strips away the overwhelming parameters of modern synths, focusing entirely on a curated hybrid architecture to achieve 90s warmth and grit.
+OSC 1 (The Anchor - Wavetable/VA): A stable, phase-locked virtual analog engine. It provides the core harmonic foundation using classic waves like the 'Alpha Juno' pulse, drifting saws, and deep sub-sines.
+OSC 2 (The Soul - Sample/Granular): A dedicated sampling engine that allows users to load vintage chord stabs or textures. It features a Granular "Freeze" function to stretch short samples into endless ambient washes, and a hardcoded "Vintage Mode" that introduces the 12-bit aliasing and interpolation artifacts of an Akai S950.
+The Controls: Each oscillator is restricted to just three tactile parameters: Shape (Waveform/Sample select), Pitch/Octave, and Spread (A phase-safe width control that thickens the sound without requiring voice-count management).
+
+2. THE SPATIAL AUDIO BOX (RIGHT WING)
+A 2D, top-down radar interface. The absolute center of the box represents the listener's head (Zero Audio Manipulation). Users position two nodes (representing OSC 1 and OSC 2) around this center.
+​Radial Distance (Depth): Moving a node away from the center dynamically increases reverb wetness, shortens pre-delay, and engages a high-frequency roll-off (air absorption), pushing the sound physically backward into the mix.
+​Lateral Angle (Width): Positioning nodes left or right utilizes psychoacoustic panning and Haas-effect micro-delays to create massive stereo width without phase cancellation.
+
+
+​3. THE SETTINGS & WEATHER ENGINE (CENTER CONSOLE)
+A unified macro-system that dictates the environmental physics of the pad.
+​Acoustic Presets: Selecting a setting (Forest, Temple, Basement) instantly loads a heuristic table of DSP parameters, altering the underlying Reverb algorithm and EQ notches to emulate the psychoacoustics of that physical space.
+​Integrated Foley: Each setting triggers a corresponding organic audio loop (e.g., crickets, tape hiss, industrial hum). This Foley is routed through the Spatial Box's FX chain, gluing the noise floor and the synthesizer into the exact same acoustic environment.
+​The Setting OEL VISUALIZER (CENTER DISPLAY)
+A strictly 2D, pixelated display capped at a nostalgic 20 FPS to emulate the phosphor ghosting of late-90s hardware. It uses 2D geometric grids and scrolling particle arrays that react to the amplitude and frequency of the audio, achieving the Y2K "Wipeout" aesthetic with near-zero CPU overhead.
+
+
+4. THE ORACLE BOX (BOTTOM BAR)
+The intelligence center of the OEL-90, designed to remove the barrier of music theory so the user can focus entirely on texture.
+The "Listen" Button: A glowing button that briefly analyzes the DAW's main bus to detect the key of your current track.
+Scale Lock: Once a key is detected, the Oracle locks the synthesizer to era-appropriate scales (like Phrygian or Dorian).
+The Happy Accident Arp: A generative, syncopated rhythm engine heavily weighted toward the 1st, 3rd, and 7th notes of the locked scale. Even if the user blindly turns the pitch knob or mashes a MIDI keyboard, the Oracle ensures every note is perfectly harmonized with the project.
+
+5. THE OEL VISUALIZER (CENTER DISPLAY)
+The visual heart of the synth. A deep-blue, pixelated 3D display capped at a nostalgic 20 FPS to emulate the phosphor ghosting of late-90s Pioneer car stereos.
+Reactive Feedback: The screen displays pixelated rain, stars, or heat haze depending on the Weather setting. When a pad is played, 3D geometric grids warp and pulse to the exact frequencies and Arp rhythms, creating a hypnotic, visual reflection of the audio.
+
+With this finalized blueprint, the Dad Agent has every logical rule needed to code the GUI, the DSP filters, and the "shortcut" math.
+
+
