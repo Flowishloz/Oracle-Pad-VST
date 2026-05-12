@@ -17,7 +17,8 @@ juce_add_plugin(OraclePad
 
 target_sources(OraclePad PRIVATE
     Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp)
+    Source/PluginEditor.cpp
+    Source/RadarComponent.cpp)
 
 target_link_libraries(OraclePad
     PRIVATE
@@ -34,13 +35,17 @@ target_link_libraries(OraclePad
         juce::juce_recommended_lto_flags
         juce::juce_recommended_warning_flags)
 
-# --- THE MANUAL FORCE-COPY STEP ---
-# This executes after the VST3 target is built.
+# --- DEPLOYMENT: copy binary directly into the Ableton VST3 scan path ---
+# Step 1: guarantee the destination folder exists (no error if it already does).
+# Step 2: copy only the compiled DLL — faster than copy_directory and avoids
+#         stale bundle artefacts confusing the host scanner on incremental builds.
 add_custom_command(TARGET OraclePad_VST3 POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy_directory
-    "$<TARGET_FILE_DIR:OraclePad_VST3>/../.." 
-    "E:/Music/Plugins/VST3/OraclePad.vst3"
-    COMMENT "Force-copying VST3 to E: drive..."
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "E:/Music/Plugins/VST3/OraclePad.vst3/Contents/x86_64-win"
+    COMMAND ${CMAKE_COMMAND} -E copy
+            "$<TARGET_FILE:OraclePad_VST3>"
+            "E:/Music/Plugins/VST3/OraclePad.vst3/Contents/x86_64-win/OraclePad.vst3"
+    COMMENT "Deploying OraclePad.vst3 -> E:/Music/Plugins/VST3"
 )
 
 target_compile_definitions(OraclePad PRIVATE

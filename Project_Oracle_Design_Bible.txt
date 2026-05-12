@@ -1,0 +1,51 @@
+# DESIGN SYSTEM SPECIFICATION: PROJECT ORACLE
+# Version: 1.0 | Theme: Y2K Pioneer / Chrome-Core / Stereo-Aesthetic
+
+[CORE DESIGN PHILOSOPHY]
+The UI must evoke high-end hardware from 1998-2003. Focus on depth, skeuomorphism, high-contrast metallics, and "glossy" surfaces. All components should look like physical objects embedded in a satin-chrome chassis.
+
+[1. GEOMETRY & BOX MODEL]
+- Container Corner Radius: 20px (Strictly enforced for main panels and sub-modules).
+- Component Corner Radius: 8px (For smaller internal buttons or toggles).
+- Beveling (The "Edge" Rule):
+    - Every raised surface must have a 2px inner-bevel.
+    - Top/Left border-color: #FFFFFF at 40% opacity (Highlight).
+    - Bottom/Right border-color: #000000 at 50% opacity (Shadow).
+    - This creates the 3D 'pressed' or 'raised' hardware look.
+
+[2. COLOR PALETTE (CHROME-CORE)]
+- Chassis Background: #C0C0C0 (Satin Silver/Mercury).
+- Main Display/Screen: #0A0A0A (High-Gloss Piano Black).
+- Accent Glow 1: #00F0FF (Electric Cyan - Primary state/activity).
+- Accent Glow 2: #FF007A (Cyber Magenta - Secondary functions).
+- Text Primary: #E0E0E0 (Anti-aliased Silver-White).
+- Text Secondary: #7A7A7A (Engraved/Etched Grey).
+
+[3. TYPOGRAPHY]
+- Primary Headings: Eurostile Bold or Orbitron (All Caps).
+- Parameter Labels: Clean Sans-Serif (Inter or Helvetica), 10pt-12pt.
+- Digital Readouts: 7-Segment or Dot-Matrix font styles.
+- Letter Spacing: +10% (Tracking) to mimic hardware labeling.
+
+[4. COMPONENT STYLING]
+- KNOBS: 
+    - Radial brushed metal texture (conic-gradient).
+    - Static specular highlight at 11 o'clock.
+    - Use a physical 'pointer' line in #00F0FF.
+- SLIDERS: 
+    - Recessed tracks (inner shadow: 4px).
+    - Caps should be "Chrome-capped" with a vertical center-line highlight.
+- GLASS OVERLAYS:
+    - Apply to all digital displays.
+    - Linear gradient: rgba(255,255,255, 0.15) at 45 deg to transparent.
+
+[5. INTERACTION LOGIC]
+- Hover States: Increase the 'Glow' intensity of the nearest LED or light source.
+- Active States: Subtle 'inward' shift (transform: translateY(1px)) to simulate a mechanical click.
+- Animation: Transitions should be snappy (150ms) to mimic electronic hardware response times.
+
+[6. CSS / IMPLEMENTATION HINTS FOR CLAUDE]
+- Use 'box-shadow: inset' for all recessed tracks and screen housings.
+- Use 'backdrop-filter: blur(5px)' for acrylic/glass elements.
+- Use 'conic-gradient' for metallic knob textures.
+- Ensure all lighting (gradients and shadows) is consistent across the entire UI.

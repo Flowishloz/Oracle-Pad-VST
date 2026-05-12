@@ -70,8 +70,9 @@ struct OracleVoice
     juce::ADSR          envelope;
     int                 noteNumber = -1;
     bool                active     = false;
-    int                 voiceIndex = 0;
-    float               tiltZ      = 0.0f;
+    int                 voiceIndex    = 0;
+    float               tiltZ         = 0.0f;
+    float               lastSubSample = 0.0f;  // polyphonic sub — written by renderStereo, read by processBlock
 
     void start (int note, float frequency, double sampleRate,
                 int tableSize,
@@ -126,6 +127,7 @@ struct OracleVoice
 
         // Sub oscillator (independent phase, -1 oct).
         float rawSub     = subOsc.tick (subTbl);
+        lastSubSample    = rawSub * env;    // captured for polyphonic mono-center accumulation
         // Gentle harmonic saturation — adds upper-partial weight, audible on small speakers
         const float subS = std::tanh (rawSub * 1.5f) * subBlend;
 
@@ -422,8 +424,8 @@ private:
     static constexpr int numHarmonics  = 64;
     static constexpr int numVoices     = 8;
 
-    // [0] Saw  [1] Square  [2] Sub (pure sine, played one octave below)
-    std::array<std::vector<float>, 3> osc1Wavetables;
+    // [0] Saw  [1] Square  [2] Sub Sine  [3] Sub Triangle
+    std::array<std::vector<float>, 4> osc1Wavetables;
     std::array<OracleVoice, numVoices> voices;
     juce::ADSR::Parameters             padParams;
 
@@ -433,6 +435,12 @@ private:
     BiquadHP         wetHpf;
 
     double currentSampleRate = 44100.0;
+
+    // Beat 2 — 1-pole LP filter state for Osc1 path (stereo, audio thread only)
+    float osc1FiltZ_L = 0.0f, osc1FiltZ_R = 0.0f;
+
+    // Polyphonic sub accumulation — filled per-sample from voice.lastSubSample, summed post-reverb
+    juce::AudioBuffer<float> subMonoBuf;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OraclePadAudioProcessor)
 };

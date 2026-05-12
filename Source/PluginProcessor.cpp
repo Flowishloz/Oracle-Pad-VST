@@ -6,24 +6,128 @@ OraclePadAudioProcessor::OraclePadAudioProcessor()
                        .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
        apvts (*this, nullptr, "Parameters",
        {
-           std::make_unique<juce::AudioParameterFloat>  ("master_gain",   "Master Gain",         0.0f,  1.0f,  0.8f),
-           std::make_unique<juce::AudioParameterFloat>  ("osc1_morph",    "OSC1 Morph",          0.0f,  1.0f,  0.0f),
-           std::make_unique<juce::AudioParameterFloat>  ("osc1_sub",      "OSC1 Sub Blend",
+           // ══════════════════════════════════════════════════════════════════
+           // OSC 1 — 7-Knob Row
+           // VOL  MORPH  MIX  TILT  SPREAD  CUTOFF  RES
+           // ══════════════════════════════════════════════════════════════════
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_vol",    "Osc1 Volume",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.8f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_morph",  "Osc1 Morph",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_mix",    "Osc1 Sub Mix",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_tilt",   "Osc1 Timbre Tilt",
+               juce::NormalisableRange<float> (-1.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_spread", "Osc1 Voice Spread",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_cutoff", "Osc1 Filter Cutoff",
+               juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.3f), 20000.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc1_res",    "Osc1 Filter Resonance",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           // ══════════════════════════════════════════════════════════════════
+           // SUB OSC — Minimal Module
+           // VOL  BYPASS
+           // ══════════════════════════════════════════════════════════════════
+           std::make_unique<juce::AudioParameterFloat> (
+               "sub_vol",     "Sub Volume",
                juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f, 0.4f), 0.0f),
-           std::make_unique<juce::AudioParameterFloat>  ("osc1_tilt",     "OSC1 Timbre Tilt",   -1.0f,  1.0f,  0.0f),
-           std::make_unique<juce::AudioParameterFloat>  ("osc1_spread",   "OSC1 Voice Spread",   0.0f,  1.0f,  0.0f),
-           std::make_unique<juce::AudioParameterFloat>  ("adsr_attack",   "Attack",
+
+           std::make_unique<juce::AudioParameterInt> (
+               "sub_shape",   "Sub Shape",   0, 2, 0),   // 0=Sine 1=Triangle 2=Square
+
+           // ══════════════════════════════════════════════════════════════════
+           // OSC 2 — 7-Knob Granular Row
+           // VOL  CUTOFF  RES  DENSITY  SIZE  JITTER  SPEED
+           // ══════════════════════════════════════════════════════════════════
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc2_vol",     "Osc2 Volume",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.8f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc2_cutoff",  "Osc2 Filter Cutoff",
+               juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.3f), 20000.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "osc2_res",     "Osc2 Filter Resonance",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "gran_density", "Grain Density",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.5f),
+
+           // Grain size in milliseconds — exponential skew puts control weight
+           // in the 10–150 ms zone where jungle mosaic textures live.
+           std::make_unique<juce::AudioParameterFloat> (
+               "gran_size",    "Grain Size (ms)",
+               juce::NormalisableRange<float> (10.0f, 500.0f, 0.1f, 0.35f), 80.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "gran_jitter",  "Grain Jitter",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           // 0.25x = -2 oct, 0.5x = -1 oct, 1.0x = unity, 2.0x = +1 oct.
+           // Exponential skew centres resolution around unity for fine control.
+           std::make_unique<juce::AudioParameterFloat> (
+               "gran_speed",   "Grain Playback Speed",
+               juce::NormalisableRange<float> (0.25f, 4.0f, 0.001f, 0.5f), 1.0f),
+
+           // ══════════════════════════════════════════════════════════════════
+           // GLOBAL
+           // MASTER_GAIN  VINTAGE_MODE  ATMOSPHERE_STATE
+           // ══════════════════════════════════════════════════════════════════
+           std::make_unique<juce::AudioParameterFloat> (
+               "master_gain",     "Master Gain",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.8f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "vintage_mode",    "Vintage Mode",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterInt> (
+               "atmosphere_state", "Atmosphere State", 0, 4, 0),
+
+           // ══════════════════════════════════════════════════════════════════
+           // ADSR — shared Osc1 envelope
+           // ATTACK  DECAY  SUSTAIN  RELEASE
+           // ══════════════════════════════════════════════════════════════════
+           std::make_unique<juce::AudioParameterFloat> (
+               "adsr_attack",  "Attack",
                juce::NormalisableRange<float> (0.001f, 4.0f, 0.001f, 0.4f), 0.8f),
-           std::make_unique<juce::AudioParameterFloat>  ("adsr_decay",    "Decay",
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "adsr_decay",   "Decay",
                juce::NormalisableRange<float> (0.001f, 2.0f, 0.001f, 0.4f), 0.4f),
-           std::make_unique<juce::AudioParameterFloat>  ("adsr_sustain",  "Sustain",             0.0f,  1.0f,  0.85f),
-           std::make_unique<juce::AudioParameterFloat>  ("adsr_release",  "Release",
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "adsr_sustain", "Sustain",
+               juce::NormalisableRange<float> (0.0f, 1.0f), 0.85f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "adsr_release", "Release",
                juce::NormalisableRange<float> (0.001f, 5.0f, 0.001f, 0.4f), 1.5f),
-           std::make_unique<juce::AudioParameterFloat>  ("spatial_x",        "Spatial X",          -1.0f,  1.0f,  0.0f),
-           std::make_unique<juce::AudioParameterFloat>  ("spatial_y",        "Spatial Y",          -1.0f,  1.0f,  0.0f),
-           std::make_unique<juce::AudioParameterInt>    ("atmosphere_state", "Atmosphere State",   0, 4, 0),
-           std::make_unique<juce::AudioParameterChoice> ("weather_mode",     "Weather Mode",
-               juce::StringArray {"Forest", "Valley", "Temple", "Hut", "Basement"}, 0)
+
+           // ── Spatial (radar mouse control) — not exposed as knobs ──────────
+           std::make_unique<juce::AudioParameterFloat> (
+               "spatial_x", "Spatial X",
+               juce::NormalisableRange<float> (-1.0f, 1.0f), 0.0f),
+
+           std::make_unique<juce::AudioParameterFloat> (
+               "spatial_y", "Spatial Y",
+               juce::NormalisableRange<float> (-1.0f, 1.0f), 0.0f),
        }),
        presetManager (apvts)
 {
@@ -84,6 +188,13 @@ void OraclePadAudioProcessor::buildWavetables()
     for (int i = 0; i < wavetableSize; ++i)
         osc1Wavetables[2][i] = std::sin (twoPi * (float) i / (float) wavetableSize);
 
+    // [3] Triangle — soft, DC-free, minimal aliasing for sub register
+    for (int i = 0; i < wavetableSize; ++i)
+    {
+        const float phase = (float) i / (float) wavetableSize;   // 0..1
+        osc1Wavetables[3][i] = phase < 0.5f ? 4.0f * phase - 1.0f : 3.0f - 4.0f * phase;
+    }
+
     // Normalise all tables to [-1, 1]
     for (auto& wt : osc1Wavetables)
     {
@@ -140,6 +251,9 @@ void OraclePadAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     wetHpf.prepare  (sampleRate, 300.0f);
 
     outputLevel.store (0.0f, std::memory_order_relaxed);
+    osc1FiltZ_L = osc1FiltZ_R = 0.0f;
+
+    subMonoBuf.setSize (1, samplesPerBlock, false, true, false);
 }
 
 void OraclePadAudioProcessor::releaseResources() {}
@@ -154,13 +268,32 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
+    subMonoBuf.clear();
 
     // Read all parameters once per block — safe from the audio thread.
-    const float masterGain = apvts.getRawParameterValue ("master_gain")->load();
-    const float morphAmt   = apvts.getRawParameterValue ("osc1_morph")->load();
-    const float subBlend   = apvts.getRawParameterValue ("osc1_sub")->load();
-    const float tiltParam  = apvts.getRawParameterValue ("osc1_tilt")->load();
-    const float spreadAmt  = apvts.getRawParameterValue ("osc1_spread")->load();
+    const float masterGain  = apvts.getRawParameterValue ("master_gain")->load();
+    const float morphAmt    = apvts.getRawParameterValue ("osc1_morph")->load();
+    const float subVolParam = apvts.getRawParameterValue ("sub_vol")->load();
+    const int   subShape    = (int) apvts.getRawParameterValue ("sub_shape")->load();   // 0=Sine 1=Tri 2=Sq
+    const float tiltParam   = apvts.getRawParameterValue ("osc1_tilt")->load();
+    const float spreadAmt   = apvts.getRawParameterValue ("osc1_spread")->load();
+    const float osc1Vol     = apvts.getRawParameterValue ("osc1_vol")->load();
+    const float vintageAmt  = apvts.getRawParameterValue ("vintage_mode")->load();
+    const float osc1Cutoff  = apvts.getRawParameterValue ("osc1_cutoff")->load();
+    const float osc1Res     = juce::jlimit (0.0f, 0.95f,
+                                  apvts.getRawParameterValue ("osc1_res")->load());
+
+    // OSC 2 / granular params — read every block (DSP expansion placeholder)
+    const float osc2Vol     = apvts.getRawParameterValue ("osc2_vol")->load();
+    const float granDensity = apvts.getRawParameterValue ("gran_density")->load();
+    const float granSize    = apvts.getRawParameterValue ("gran_size")->load();
+    const float granJitter  = apvts.getRawParameterValue ("gran_jitter")->load();
+    const float granSpeed   = apvts.getRawParameterValue ("gran_speed")->load();
+    juce::ignoreUnused (osc2Vol, granDensity, granSize, granJitter, granSpeed);
+
+    // Pre-compute filter coefficient once per block (exp is expensive per-sample).
+    const float osc1FiltCoef = std::exp (-juce::MathConstants<float>::twoPi
+                                          * osc1Cutoff / (float) currentSampleRate);
 
     // Live ADSR — read knobs every block so voices respond immediately
     padParams.attack  = apvts.getRawParameterValue ("adsr_attack")->load();
@@ -227,7 +360,8 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
 
     const auto& sawTbl = osc1Wavetables[0];
     const auto& sqTbl  = osc1Wavetables[1];
-    const auto& subTbl = osc1Wavetables[2];
+    // Sub table: 0=Sine(2), 1=Triangle(3), 2=Square(reuse sqTbl→1)
+    const auto& subTbl = osc1Wavetables[subShape == 1 ? 3 : subShape == 2 ? 1 : 2];
 
     const int numSamples     = buffer.getNumSamples();
     const int numOutChannels = getTotalNumOutputChannels();
@@ -289,9 +423,46 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         for (auto& v : voices)
         {
             auto [l, r] = v.renderStereo (sawTbl, sqTbl, subTbl,
-                                          morphAmt, subBlend, tiltParam, spreadAmt);
+                                          morphAmt, 0.0f, tiltParam, spreadAmt);
             sumL += l;
             sumR += r;
+        }
+
+        // ── Polyphonic sub accumulation (lastSubSample written by renderStereo above) ──
+        {
+            float subMono = 0.0f;
+            for (auto& v : voices)
+                if (v.active) subMono += v.lastSubSample;
+            subMonoBuf.getWritePointer (0)[i] = subMono;
+        }
+
+        // ── Osc1 volume ──────────────────────────────────────────────────────
+        sumL *= osc1Vol;
+        sumR *= osc1Vol;
+
+        // ── Osc1 LP filter (1-pole with resonance feedback) ──────────────────
+        // At default cutoff (20kHz) coefficient is ~1 → transparent all-pass.
+        // Resonance adds negative feedback before the integrator for self-osc feel.
+        {
+            const float inL = sumL - osc1Res * osc1FiltZ_L;
+            const float inR = sumR - osc1Res * osc1FiltZ_R;
+            sumL = osc1FiltZ_L = osc1FiltCoef * osc1FiltZ_L + (1.0f - osc1FiltCoef) * inL;
+            sumR = osc1FiltZ_R = osc1FiltCoef * osc1FiltZ_R + (1.0f - osc1FiltCoef) * inR;
+        }
+
+        // ── Vintage saturation (Osc1+Osc2 path only, pre-spatializer) ────────
+        // Sub path (already baked in via subBlend in renderStereo) is included
+        // in the voice sum here; vintage is off at default 0.0 so sub is clean.
+        if (vintageAmt > 0.001f)
+        {
+            const float drive = 1.0f + vintageAmt * 3.0f;
+            const float comp  = 1.0f / (1.0f + vintageAmt * 0.5f);
+            sumL = std::tanh (sumL * drive) * comp;
+            sumR = std::tanh (sumR * drive) * comp;
+            // 22kHz-era bit-depth quantisation — 32-bit→8-bit as vintageAmt 0→1
+            const float quant = std::pow (2.0f, 32.0f - vintageAmt * 24.0f);
+            sumL = std::round (sumL * quant) / quant;
+            sumR = std::round (sumR * quant) / quant;
         }
 
         // ── BBD Chorus (OSC 1 voice sum → stereo widening) ───────────────────
@@ -390,6 +561,24 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         const auto* revR  = atmosphereEngine.wetBuf.getReadPointer (1);
         for (int i = 0; i < numSamples; ++i)
             chanR[i] = std::tanh ((chanR[i] + revR[i]) * 0.3f) * masterGain;
+    }
+
+    // ── Polyphonic sub — post effects, mono centre, bypasses spatializer/vintage ──
+    if (subVolParam > 0.001f)
+    {
+        const auto* subData = subMonoBuf.getReadPointer (0);
+        if (numOutChannels >= 1)
+        {
+            auto* ch = buffer.getWritePointer (0);
+            for (int j = 0; j < numSamples; ++j)
+                ch[j] += subData[j] * subVolParam;
+        }
+        if (numOutChannels >= 2)
+        {
+            auto* ch = buffer.getWritePointer (1);
+            for (int j = 0; j < numSamples; ++j)
+                ch[j] += subData[j] * subVolParam;
+        }
     }
 
     // Leaky peak follower — feeds the editor's radar visualiser (message thread reads this).
