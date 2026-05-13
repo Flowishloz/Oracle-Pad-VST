@@ -16,7 +16,8 @@ juce_add_plugin(OraclePad
 
 target_sources(OraclePad PRIVATE
     Source/PluginProcessor.cpp
-    Source/PluginEditor.cpp)
+    Source/PluginEditor.cpp
+    Source/AtmosphereEngine.cpp)
 
 target_link_libraries(OraclePad
     PRIVATE
