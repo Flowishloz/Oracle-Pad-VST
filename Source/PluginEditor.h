@@ -3,16 +3,16 @@
 #include "PluginProcessor.h"
 
 // ============================================================================
-//  LOOKANDFEEL — LARGE SKEUOMORPHIC (Global dome knobs, ~58px)
-//  Stage 1: Satin-chrome chassis aesthetic.
-//  Radial brushed-metal body, specular at 11-o'clock, Electric Cyan pointer.
+//  LOOKANDFEEL — LARGE SKEUOMORPHIC (Global dome knobs, ~70px)
+//  Phase 7: Pioneer-Blue / Chrome-Core palette.
+//  Radial brushed-metal body, specular at 11-o'clock, Warm Cyan pointer.
 // ============================================================================
 class SkeuomorphicLookAndFeel : public juce::LookAndFeel_V4
 {
 public:
     SkeuomorphicLookAndFeel()
     {
-        setColour (juce::Slider::rotarySliderFillColourId,    juce::Colour (0xFF00F0FF));
+        setColour (juce::Slider::rotarySliderFillColourId,    juce::Colour (0xFF00D1FF));
         setColour (juce::Slider::rotarySliderOutlineColourId, juce::Colours::black.withAlpha (0.5f));
     }
 
@@ -20,26 +20,26 @@ public:
                                bool highlighted, bool down) override
     {
         const auto  b      = btn.getLocalBounds().toFloat().reduced (0.5f);
-        const float corner = 8.0f;   // Design Bible: internal components 8px radius
+        const float corner = 8.0f;
         g.setColour (juce::Colours::black.withAlpha (0.65f));
         g.fillRoundedRectangle (b, corner);
         if (down)
         {
-            g.setColour (juce::Colour (0xff040808));
+            g.setColour (juce::Colour (0xff040812));
             g.fillRoundedRectangle (b.reduced (1.0f), corner);
         }
         else
         {
             juce::ColourGradient grad (
-                juce::Colour (highlighted ? 0xff1f2d2a : 0xff162220), 0.0f, b.getY(),
-                juce::Colour (highlighted ? 0xff0d1614 : 0xff090f0e), 0.0f, b.getBottom(), false);
+                juce::Colour (highlighted ? 0xff1a2840 : 0xff101820), 0.0f, b.getY(),
+                juce::Colour (highlighted ? 0xff0d1828 : 0xff080f18), 0.0f, b.getBottom(), false);
             g.setGradientFill (grad);
             g.fillRoundedRectangle (b.reduced (1.0f), corner);
         }
-        // Bevel: top-left white 40%, bottom-right black 50%
+        // Design Bible v2 bevel: Inner Highlight #FFFFFF 50%, Outer Recess #000000 40%
         juce::ColourGradient bevel (
-            juce::Colours::white.withAlpha (0.40f), b.getX(), b.getY(),
-            juce::Colours::black.withAlpha (0.50f), b.getRight(), b.getBottom(), false);
+            juce::Colours::white.withAlpha (0.50f), b.getX(), b.getY(),
+            juce::Colours::black.withAlpha (0.40f), b.getRight(), b.getBottom(), false);
         g.setGradientFill (bevel);
         g.drawRoundedRectangle (b.reduced (0.5f), corner - 0.5f, 1.5f);
     }
@@ -90,7 +90,7 @@ public:
         g.setGradientFill (bodyGrad);
         g.fillEllipse (kb);
 
-        // Specular at 11 o'clock (≈ -150° from +X axis in screen coords)
+        // Specular at 11 o'clock
         const float specAngle = -juce::MathConstants<float>::pi * 5.0f / 6.0f;
         const float specX = cx + kr * 0.42f * std::cos (specAngle);
         const float specY = cy + kr * 0.42f * std::sin (specAngle);
@@ -100,29 +100,28 @@ public:
         g.setGradientFill (specGrad);
         g.fillEllipse (kb);
 
-        // Bevel ring
-        g.setColour (juce::Colours::white.withAlpha (0.15f));
+        // Design Bible v2 bevel ring: white 50% / black 40%
+        g.setColour (juce::Colours::white.withAlpha (0.20f));
         g.drawEllipse (kb.reduced (0.5f), 1.0f);
-        g.setColour (juce::Colours::black.withAlpha (0.55f));
+        g.setColour (juce::Colours::black.withAlpha (0.45f));
         g.drawEllipse (kb, 0.5f);
 
-        // Pointer — Electric Cyan line
+        // Pointer — Pioneer Warm Cyan
         const float pLen   = kr * 0.50f;
         const float pStart = -kr * 0.88f;
         juce::Path  p;
         p.addRoundedRectangle (-1.4f, pStart, 2.8f, pLen, 0.8f);
         p.applyTransform (juce::AffineTransform::rotation (toAngle).translated (cx, cy));
-        g.setColour (juce::Colour (0xFF00F0FF));
+        g.setColour (juce::Colour (0xFF00D1FF));
         g.fillPath (p);
-        g.setColour (juce::Colour (0xFF00F0FF).withAlpha (0.32f));
+        g.setColour (juce::Colour (0xFF00D1FF).withAlpha (0.32f));
         g.strokePath (p, juce::PathStrokeType (3.0f));
     }
 };
 
 // ============================================================================
-//  LOOKANDFEEL — MICRO KNOB (7-knob rows, ~30px)
-//  Derives from SkeuomorphicLookAndFeel so button rendering is inherited.
-//  Stage 1: radial brushed metal, specular at 11 o'clock, cyan pointer.
+//  LOOKANDFEEL — MICRO KNOB (7-knob rows, ~36px)
+//  Phase 7: Pioneer Blue accent colour, all warm tones removed.
 // ============================================================================
 class MicroKnobLAF : public SkeuomorphicLookAndFeel
 {
@@ -182,31 +181,31 @@ public:
         g.setGradientFill (specGrad);
         g.fillEllipse (kb);
 
-        // Bevel ring
-        g.setColour (juce::Colours::white.withAlpha (0.10f));
+        // Design Bible v2 bevel ring: white 50% / black 40%
+        g.setColour (juce::Colours::white.withAlpha (0.15f));
         g.drawEllipse (kb.reduced (0.5f), 0.75f);
-        g.setColour (juce::Colours::black.withAlpha (0.50f));
+        g.setColour (juce::Colours::black.withAlpha (0.45f));
         g.drawEllipse (kb, 0.5f);
 
-        // Pointer — Electric Cyan
+        // Pointer — Pioneer Warm Cyan
         const float pLen   = kr * 0.55f;
         const float pStart = -kr * 0.90f;
         juce::Path  p;
         p.addRoundedRectangle (-1.0f, pStart, 2.0f, pLen, 0.5f);
         p.applyTransform (juce::AffineTransform::rotation (toAngle).translated (cx, cy));
-        g.setColour (juce::Colour (0xFF00F0FF));
+        g.setColour (juce::Colour (0xFF00D1FF));
         g.fillPath (p);
-        g.setColour (juce::Colour (0xFF00F0FF).withAlpha (0.30f));
+        g.setColour (juce::Colour (0xFF00D1FF).withAlpha (0.30f));
         g.strokePath (p, juce::PathStrokeType (2.0f));
     }
 
 private:
-    juce::Colour arcColour { juce::Colour (0xFF00F0FF) };
+    juce::Colour arcColour { juce::Colour (0xFF00D1FF) };
 };
 
 // ============================================================================
-//  ENVELOPE MONITOR — non-interactable ADSR shape display (green OEL screen)
-//  Preserved from Phase 5.
+//  ENVELOPE MONITOR — non-interactable ADSR shape display
+//  Phase 7: Pioneer Warm Cyan OEL colour (#00D1FF).
 // ============================================================================
 class EnvelopeMonitor : public juce::Component
 {
@@ -221,14 +220,14 @@ public:
         const float release = apvts.getRawParameterValue ("adsr_release")->load();
 
         auto b = getLocalBounds().reduced (2).toFloat();
-        const juce::Colour green (0xFF00FF66);
+        const juce::Colour cyan (0xFF00D1FF);
 
         g.setColour (juce::Colour (0xff020202));
         g.fillRoundedRectangle (b, 4.0f);
-        g.setColour (green.withAlpha (0.5f));
+        g.setColour (cyan.withAlpha (0.5f));
         g.drawRoundedRectangle (b.reduced (0.5f), 4.0f, 1.0f);
 
-        g.setColour (green.withAlpha (0.04f));
+        g.setColour (cyan.withAlpha (0.04f));
         for (float scanY = b.getY() + 2.0f; scanY < b.getBottom(); scanY += 3.0f)
             g.drawHorizontalLine ((int) scanY, b.getX() + 2.0f, b.getRight() - 2.0f);
 
@@ -255,13 +254,13 @@ public:
         juce::Path fill = env;
         fill.lineTo (x0 + w, yBot);
         fill.closeSubPath();
-        g.setColour (green.withAlpha (0.07f));
+        g.setColour (cyan.withAlpha (0.07f));
         g.fillPath (fill);
 
-        g.setColour (green.withAlpha (0.20f));
+        g.setColour (cyan.withAlpha (0.20f));
         g.strokePath (env, juce::PathStrokeType (3.5f, juce::PathStrokeType::curved,
                                                   juce::PathStrokeType::rounded));
-        g.setColour (green.withAlpha (0.90f));
+        g.setColour (cyan.withAlpha (0.90f));
         g.strokePath (env, juce::PathStrokeType (1.5f, juce::PathStrokeType::curved,
                                                   juce::PathStrokeType::rounded));
     }
@@ -271,11 +270,8 @@ private:
 };
 
 // ============================================================================
-//  RADAR COMPONENT — interactive binaural spatial field (Stage 1)
-//
-//  Square module container with 20px corner radius.
-//  Source orb constrained within the rounded boundary.
-//  Implementation lives in RadarComponent.cpp.
+//  RADAR COMPONENT — interactive binaural spatial field
+//  Implementation in RadarComponent.cpp (do not alter).
 // ============================================================================
 class RadarComponent : public juce::Component
 {
@@ -319,7 +315,7 @@ private:
     void         flashBanner (const juce::String& paramName, float value,
                               const juce::String& unit);
 
-    // Draws a Design Bible module container (20px radius, 2px inner bevel).
+    // Draws a Design Bible module container (20px radius, thin metallic header).
     void drawModuleContainer (juce::Graphics& g,
                               juce::Rectangle<int> bounds,
                               juce::Colour         accentColour,
@@ -329,18 +325,17 @@ private:
     OraclePadAudioProcessor& audioProcessor;
 
     // ── LookAndFeel instances (must outlive every control) ────────────────────
-    SkeuomorphicLookAndFeel largeLAF;   // Global dome knobs (~58px)
-    MicroKnobLAF            microLAF;   // OSC 1 row — amber
-    MicroKnobLAF            subLAF;     // Sub strip — green
-    MicroKnobLAF            osc2LAF;    // OSC 2 row — purple
-    MicroKnobLAF            adsrLAF;    // ADSR strip — cyan
+    SkeuomorphicLookAndFeel largeLAF;
+    MicroKnobLAF            microLAF;   // OSC 1 — Pioneer Blue
+    MicroKnobLAF            subLAF;     // Sub strip — Warm Cyan
+    MicroKnobLAF            osc2LAF;    // OSC 2 — Mid Blue
+    MicroKnobLAF            adsrLAF;    // ADSR strip — Warm Cyan
 
     // ── Sub-components ────────────────────────────────────────────────────────
     EnvelopeMonitor envelopeMonitor;
     RadarComponent  radarComponent;
 
     // ── OSC 1 — 3×2 Grid (VOL MORPH TILT / SPREAD CUTOFF RES) ───────────────
-    // osc1MixKnob is attached (preset compat) but hidden in Stage 1.
     juce::Slider osc1VolKnob, osc1MorphKnob, osc1MixKnob, osc1TiltKnob,
                  osc1SpreadKnob, osc1CutoffKnob, osc1ResKnob;
 
@@ -349,7 +344,6 @@ private:
     juce::Slider subShapeKnob;
 
     // ── OSC 2 — 3×2 Grid (VOL CUTOFF RES / DENSITY SIZE SPEED) ─────────────
-    // granJitterKnob is attached (preset compat) but hidden in Stage 1.
     juce::Slider osc2VolKnob, osc2CutoffKnob, osc2ResKnob,
                  granDensityKnob, granSizeKnob, granJitterKnob, granSpeedKnob;
 
@@ -364,44 +358,39 @@ private:
     // ── APVTS Attachments ─────────────────────────────────────────────────────
     using SliderAtt = juce::AudioProcessorValueTreeState::SliderAttachment;
 
-    // OSC 1
     SliderAtt osc1VolAtt, osc1MorphAtt, osc1MixAtt, osc1TiltAtt,
               osc1SpreadAtt, osc1CutoffAtt, osc1ResAtt;
-    // Sub
     SliderAtt subVolAtt;
     SliderAtt subShapeAtt;
-    // OSC 2
     SliderAtt osc2VolAtt, osc2CutoffAtt, osc2ResAtt,
               granDensityAtt, granSizeAtt, granJitterAtt, granSpeedAtt;
-    // Global
     SliderAtt masterGainAtt, vintageModeAtt;
-    // ADSR
     SliderAtt attackAtt, decayAtt, sustainAtt, releaseAtt;
 
     // ── Knob Labels ───────────────────────────────────────────────────────────
-    juce::Label osc1Labels[7];   // VOL MORPH MIX(hidden) TILT SPREAD CUTOFF RES
-    juce::Label subLabels[2];    // LEVEL  SHAPE
-    juce::Label osc2Labels[7];   // VOL CUT RES DENS SIZE JITR(hidden) SPD
-    juce::Label adsrLabels[4];   // ATK DEC SUS REL
+    juce::Label osc1Labels[7];
+    juce::Label subLabels[2];
+    juce::Label osc2Labels[7];
+    juce::Label adsrLabels[4];
 
     // ── Banner flash state ────────────────────────────────────────────────────
     juce::String bannerText;
     int          bannerCountdown = 0;
 
-    // ── Runtime ───────────────────────────────────────────────────────────────
     float lastOutputLevel = 0.0f;
 
     std::unique_ptr<juce::FileChooser> savePresetChooser;
 
-    // ── Stage 1 Design Bible — OEL-90 Rack Manifesto ─────────────────────────
-    static constexpr int kW       = 920;
-    static constexpr int kH       = 620;
+    // ── Phase 7 Design Bible — Pioneer-Blue / Chrome-Core ────────────────────
+    static constexpr int kW     = 920;
+    static constexpr int kH     = 680;   // +60 to clear ADSR clipping with scaled knobs
     static constexpr int kBannerH = 65;
-    static constexpr int kPad     = 8;
-    static constexpr int kModR    = 20;   // Design Bible: 20px module corner radius
-    static constexpr int kMicro   = 30;
-    static constexpr int kLarge   = 58;
-    static constexpr int kLabelH  = 16;
+    static constexpr int kPad   = 8;
+    static constexpr int kModR  = 20;    // Design Bible: 20px module corner radius
+    static constexpr int kHdrH  = 20;    // Ultra-thin section banner (Design Bible: 18-24px max)
+    static constexpr int kMicro = 36;    // Micro knob size (+20% vs Phase 6)
+    static constexpr int kLarge = 70;    // Large dome knob size (+20% vs Phase 6)
+    static constexpr int kLabelH = 16;
 
     // Module regions (absolute window coordinates)
     static constexpr int kOsc1X = kPad;
@@ -419,29 +408,28 @@ private:
     static constexpr int kOsc2W = 524;
     static constexpr int kOsc2H = 165;
 
-    // Radar square: fills right column
     static constexpr int kRadarX  = kSubX + kSubW + kPad;   // 540
     static constexpr int kRadarY  = kBannerH + kPad;         // 73
     static constexpr int kRadarSz = kW - kRadarX - kPad;     // 372
 
     static constexpr int kOutX  = kRadarX;
-    static constexpr int kOutY  = kRadarY + kRadarSz + kPad;  // 453
+    static constexpr int kOutY  = kRadarY + kRadarSz + kPad; // 453
     static constexpr int kOutW  = kRadarSz;
-    static constexpr int kOutH  = 88;
+    static constexpr int kOutH  = 116;   // expanded to fit kLarge=70 + header + label
 
     static constexpr int kAdsrX = kPad;
-    static constexpr int kAdsrY = kOutY + kOutH + kPad;       // 549
-    static constexpr int kAdsrW = kW - kPad * 2;               // 904
-    static constexpr int kAdsrH = kH - kAdsrY - kPad;         // 63
+    static constexpr int kAdsrY = kOutY + kOutH + kPad;      // 577
+    static constexpr int kAdsrW = kW - kPad * 2;              // 904
+    static constexpr int kAdsrH = kH - kAdsrY - kPad;        // 95
 
-    // Design Bible colour constants
-    static constexpr juce::uint32 kSatinSilver = 0xFFC0C0C0;
-    static constexpr juce::uint32 kModuleBg    = 0xFF1A1C22;
-    static constexpr juce::uint32 kElecCyan    = 0xFF00F0FF;
-    static constexpr juce::uint32 kTextColor   = 0xFFE0E0E0;
-    static constexpr juce::uint32 kAmberOsc1   = 0xFFFFAA00;
-    static constexpr juce::uint32 kPurpleOsc2  = 0xFFAA44FF;
-    static constexpr juce::uint32 kGreenSub    = 0xFF00FF88;
+    // ── Pioneer-Blue / Chrome-Core palette (Phase 7) ──────────────────────────
+    // All amber, purple, and green accents removed per Design Bible v2.
+    static constexpr juce::uint32 kSatinSilver  = 0xFFC0C0C0;
+    static constexpr juce::uint32 kModuleBg     = 0xFF1A1C22;
+    static constexpr juce::uint32 kElecCyan     = 0xFF00D1FF; // Pioneer Warm Cyan
+    static constexpr juce::uint32 kPioneerBlue  = 0xFF2A5AFF; // Deep Electric Blue (OSC 1)
+    static constexpr juce::uint32 kPioneerMid   = 0xFF4A7AFF; // Mid Blue (OSC 2)
+    static constexpr juce::uint32 kTextColor    = 0xFFE0E0E0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (OraclePadAudioProcessorEditor)
 };

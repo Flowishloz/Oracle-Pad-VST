@@ -1,17 +1,14 @@
-// PluginEditor.cpp — Stage 1: Ergonomic Refinement
-// Design Bible: Satin Silver chassis, 20px module containers, 2px inner bevel,
-// 3×2 knob grids (OSC1/OSC2), Electric Cyan (#00F0FF) pointer, 13pt bold labels.
+// PluginEditor.cpp — Phase 7: UI Refinement
+// Design Bible v2: Pioneer-Blue / Chrome-Core / High-Tech Skeuomorphism.
+// Changes: Pioneer palette (no amber/purple/green), kMicro=36, kLarge=70,
+//          kH=680, kHdrH=20 thin banners, 13pt labels, ADSR clipping fixed.
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
 // ============================================================================
-//  OraclePadAudioProcessorEditor
+//  Constructor
 // ============================================================================
-
-// ---------------------------------------------------------------------------
-// Constructor
-// ---------------------------------------------------------------------------
 OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProcessor& p)
     : AudioProcessorEditor (&p),
       audioProcessor (p),
@@ -20,7 +17,7 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
       // ── OSC 1 attachments ──────────────────────────────────────────────────
       osc1VolAtt    (p.apvts, "osc1_vol",    osc1VolKnob),
       osc1MorphAtt  (p.apvts, "osc1_morph",  osc1MorphKnob),
-      osc1MixAtt    (p.apvts, "osc1_mix",    osc1MixKnob),     // attached, hidden in UI
+      osc1MixAtt    (p.apvts, "osc1_mix",    osc1MixKnob),
       osc1TiltAtt   (p.apvts, "osc1_tilt",   osc1TiltKnob),
       osc1SpreadAtt (p.apvts, "osc1_spread", osc1SpreadKnob),
       osc1CutoffAtt (p.apvts, "osc1_cutoff", osc1CutoffKnob),
@@ -34,7 +31,7 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
       osc2ResAtt    (p.apvts, "osc2_res",     osc2ResKnob),
       granDensityAtt(p.apvts, "gran_density", granDensityKnob),
       granSizeAtt   (p.apvts, "gran_size",    granSizeKnob),
-      granJitterAtt (p.apvts, "gran_jitter",  granJitterKnob),  // attached, hidden
+      granJitterAtt (p.apvts, "gran_jitter",  granJitterKnob),
       granSpeedAtt  (p.apvts, "gran_speed",   granSpeedKnob),
       // ── Global attachments ─────────────────────────────────────────────────
       masterGainAtt  (p.apvts, "master_gain",  masterGainKnob),
@@ -45,11 +42,11 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
       sustainAtt (p.apvts, "adsr_sustain", sustainKnob),
       releaseAtt (p.apvts, "adsr_release", releaseKnob)
 {
-    // ── LookAndFeel colours ───────────────────────────────────────────────────
-    microLAF.setArcColour (juce::Colour (kAmberOsc1));
-    subLAF  .setArcColour (juce::Colour (kGreenSub));
-    osc2LAF .setArcColour (juce::Colour (kPurpleOsc2));
-    adsrLAF .setArcColour (juce::Colour (kElecCyan));
+    // ── Pioneer-Blue LAF arc colours ──────────────────────────────────────────
+    microLAF.setArcColour (juce::Colour (kPioneerBlue));  // OSC 1 — deep electric blue
+    subLAF  .setArcColour (juce::Colour (kElecCyan));     // Sub  — warm cyan
+    osc2LAF .setArcColour (juce::Colour (kPioneerMid));   // OSC 2 — mid blue
+    adsrLAF .setArcColour (juce::Colour (kElecCyan));     // ADSR — warm cyan
 
     // ── Slider setup lambdas ─────────────────────────────────────────────────
     auto setupMicro = [this](juce::Slider& k, MicroKnobLAF& laf) {
@@ -65,68 +62,67 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
         addAndMakeVisible (k);
     };
 
-    // OSC 1 knobs (osc1MixKnob attached but will be zero-bounded in resized)
+    // OSC 1 (osc1MixKnob attached but zero-bounded in resized)
     setupMicro (osc1VolKnob,    microLAF);
     setupMicro (osc1MorphKnob,  microLAF);
-    setupMicro (osc1MixKnob,    microLAF);   // hidden
+    setupMicro (osc1MixKnob,    microLAF);
     setupMicro (osc1TiltKnob,   microLAF);
     setupMicro (osc1SpreadKnob, microLAF);
     setupMicro (osc1CutoffKnob, microLAF);
     setupMicro (osc1ResKnob,    microLAF);
 
-    // Sub knobs
+    // Sub
     setupMicro (subVolKnob,   subLAF);
     setupMicro (subShapeKnob, subLAF);
 
-    // OSC 2 knobs (granJitterKnob hidden)
+    // OSC 2 (granJitterKnob attached but zero-bounded)
     setupMicro (osc2VolKnob,     osc2LAF);
     setupMicro (osc2CutoffKnob,  osc2LAF);
     setupMicro (osc2ResKnob,     osc2LAF);
     setupMicro (granDensityKnob, osc2LAF);
     setupMicro (granSizeKnob,    osc2LAF);
-    setupMicro (granJitterKnob,  osc2LAF);   // hidden
+    setupMicro (granJitterKnob,  osc2LAF);
     setupMicro (granSpeedKnob,   osc2LAF);
 
     // Global dome knobs
     setupLarge (masterGainKnob);
     setupLarge (vintageModeKnob);
 
-    // ADSR knobs
+    // ADSR
     setupMicro (attackKnob,  adsrLAF);
     setupMicro (decayKnob,   adsrLAF);
     setupMicro (sustainKnob, adsrLAF);
     setupMicro (releaseKnob, adsrLAF);
     addAndMakeVisible (envelopeMonitor);
 
-    // ── Knob labels — Design Bible: 13pt Bold Monospace, #E0E0E0 ────────────
-    // OSC1 order after removing Mix: VOL MORPH TILT SPREAD CUTOFF RES
-    // Index map: [0]=VOL [1]=MORPH [2]=MIX(hidden) [3]=TILT [4]=SPREAD [5]=CUT [6]=RES
+    // ── Labels — Design Bible v2: 13pt Bold Monospace, high legibility ────────
+    // OSC1 index: [0]=VOL [1]=MORPH [2]=MIX(hidden) [3]=TILT [4]=SPRD [5]=CUT [6]=RES
     static const char* const kOsc1Txt[] = { "VOL","MORPH","MIX","TILT","SPRD","CUT","RES" };
     static const char* const kSubTxt[]  = { "LEVEL","SHAPE" };
-    // OSC2: [0]=VOL [1]=CUT [2]=RES [3]=DENS [4]=SIZE [5]=JITR(hidden) [6]=SPD
+    // OSC2 index: [0]=VOL [1]=CUT [2]=RES [3]=DENS [4]=SIZE [5]=JITR(hidden) [6]=SPD
     static const char* const kOsc2Txt[] = { "VOL","CUT","RES","DENS","SIZE","JITR","SPD" };
     static const char* const kAdsrTxt[] = { "ATK","DEC","SUS","REL" };
 
     auto setupLabel = [this](juce::Label& lbl, const char* txt, juce::Colour col) {
         lbl.setText (txt, juce::dontSendNotification);
-        lbl.setFont (juce::FontOptions ("Courier New", 11.0f, juce::Font::bold));
+        lbl.setFont (juce::FontOptions ("Courier New", 13.0f, juce::Font::bold));
         lbl.setColour (juce::Label::textColourId, col);
         lbl.setJustificationType (juce::Justification::centred);
         addAndMakeVisible (lbl);
     };
 
-    const juce::Colour lblAmber  = juce::Colour (kAmberOsc1);
-    const juce::Colour lblPurple = juce::Colour (kPurpleOsc2);
-    const juce::Colour lblBlue   = juce::Colour (kElecCyan);
-    const juce::Colour lblGreen  = juce::Colour (kGreenSub);
-    const juce::Colour lblText   = juce::Colour (kTextColor);
+    // Pioneer-Blue palette — no amber, purple, or green
+    const juce::Colour lblOsc1 = juce::Colour (kPioneerBlue).withAlpha (0.90f);
+    const juce::Colour lblSub  = juce::Colour (kElecCyan).withAlpha (0.90f);
+    const juce::Colour lblOsc2 = juce::Colour (kPioneerMid).withAlpha (0.90f);
+    const juce::Colour lblAdsr = juce::Colour (kElecCyan).withAlpha (0.90f);
 
-    for (int i = 0; i < 7; ++i) setupLabel (osc1Labels[i], kOsc1Txt[i], lblAmber.withAlpha (0.85f));
-    for (int i = 0; i < 2; ++i) setupLabel (subLabels[i],  kSubTxt[i],  lblGreen.withAlpha (0.85f));
-    for (int i = 0; i < 7; ++i) setupLabel (osc2Labels[i], kOsc2Txt[i], lblPurple.withAlpha (0.85f));
-    for (int i = 0; i < 4; ++i) setupLabel (adsrLabels[i], kAdsrTxt[i], lblBlue.withAlpha (0.85f));
+    for (int i = 0; i < 7; ++i) setupLabel (osc1Labels[i], kOsc1Txt[i], lblOsc1);
+    for (int i = 0; i < 2; ++i) setupLabel (subLabels[i],  kSubTxt[i],  lblSub);
+    for (int i = 0; i < 7; ++i) setupLabel (osc2Labels[i], kOsc2Txt[i], lblOsc2);
+    for (int i = 0; i < 4; ++i) setupLabel (adsrLabels[i], kAdsrTxt[i], lblAdsr);
 
-    // Radar component
+    // Radar
     addAndMakeVisible (radarComponent);
 
     // ── Hardware buttons ──────────────────────────────────────────────────────
@@ -180,9 +176,9 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
     startTimerHz (30);
 }
 
-// ---------------------------------------------------------------------------
-// Destructor
-// ---------------------------------------------------------------------------
+// ============================================================================
+//  Destructor
+// ============================================================================
 OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor()
 {
     stopTimer();
@@ -202,9 +198,9 @@ OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor()
         b->setLookAndFeel (nullptr);
 }
 
-// ---------------------------------------------------------------------------
-// Timer
-// ---------------------------------------------------------------------------
+// ============================================================================
+//  Timer
+// ============================================================================
 void OraclePadAudioProcessorEditor::timerCallback()
 {
     const float level = audioProcessor.outputLevel.load (std::memory_order_relaxed);
@@ -223,9 +219,9 @@ void OraclePadAudioProcessorEditor::timerCallback()
     }
 }
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
+// ============================================================================
+//  Helpers
+// ============================================================================
 void OraclePadAudioProcessorEditor::flashBanner (const juce::String& name,
                                                    float               value,
                                                    const juce::String& unit)
@@ -238,17 +234,22 @@ juce::Colour OraclePadAudioProcessorEditor::getAtmosphereTint() const
 {
     const int s = juce::jlimit (0, 4,
         (int) audioProcessor.apvts.getRawParameterValue ("atmosphere_state")->load());
+    // All tints are cool-blue per Design Bible v2 (no amber, purple, or green)
     switch (s)
     {
-        case 0:  return juce::Colour (0xFF003311);
-        case 1:  return juce::Colour (0xFF112233);
-        case 2:  return juce::Colour (0xFF332200);
-        case 3:  return juce::Colour (0xFF220033);
-        default: return juce::Colour (0xFF002233);
+        case 0:  return juce::Colour (0xFF001830);  // RAINFOREST — midnight blue
+        case 1:  return juce::Colour (0xFF001228);  // TEMPLE — deep navy
+        case 2:  return juce::Colour (0xFF00142A);  // VALLEY — dark blue
+        case 3:  return juce::Colour (0xFF001530);  // CITY — cool black-blue
+        default: return juce::Colour (0xFF000F24);  // THE SILO — deepest blue
     }
 }
 
-// Design Bible module container: 20px radius, 2px inner bevel, dark panel.
+// ============================================================================
+//  drawModuleContainer
+//  Design Bible v2: 20px corner radius, ultra-thin 20px metallic gradient
+//  header, multi-stage bevel (white 50% / black 40%).
+// ============================================================================
 void OraclePadAudioProcessorEditor::drawModuleContainer (juce::Graphics& g,
                                                           juce::Rectangle<int> bounds,
                                                           juce::Colour         accentColour,
@@ -261,48 +262,56 @@ void OraclePadAudioProcessorEditor::drawModuleContainer (juce::Graphics& g,
     g.setColour (juce::Colour (kModuleBg));
     g.fillRoundedRectangle (rf, rad);
 
-    // Header accent strip (only top corners rounded)
+    // Ultra-thin header strip (kHdrH=20px) with metallic gradient
     if (title != nullptr)
     {
         const auto headerStrip = juce::Rectangle<float> (
-            rf.getX(), rf.getY(), rf.getWidth(), 24.0f);
+            rf.getX(), rf.getY(), rf.getWidth(), (float) kHdrH);
+
         juce::Path headerPath;
         headerPath.addRoundedRectangle (headerStrip.getX(), headerStrip.getY(),
                                          headerStrip.getWidth(), headerStrip.getHeight(),
                                          rad, rad, true, true, false, false);
-        g.setColour (accentColour.withAlpha (0.10f));
+
+        // Metallic gradient: subtle white shimmer over accent tint
+        juce::ColourGradient metalGrad (
+            juce::Colours::white.withAlpha (0.13f), headerStrip.getX(), headerStrip.getY(),
+            juce::Colours::black.withAlpha (0.18f), headerStrip.getX(), headerStrip.getBottom(), false);
+        metalGrad.addColour (0.35, accentColour.withAlpha (0.07f));
+        g.setGradientFill (metalGrad);
         g.fillPath (headerPath);
 
-        // Title
+        // Title — 10pt bold, highly legible at 20px header height
         g.setColour (accentColour.withAlpha (0.85f));
-        g.setFont (juce::FontOptions ("Courier New", 9.5f, juce::Font::bold));
+        g.setFont (juce::FontOptions ("Courier New", 10.0f, juce::Font::bold));
         g.drawText (juce::String (title),
-                    bounds.withHeight (24).withTrimmedLeft (12),
+                    bounds.withHeight (kHdrH).withTrimmedLeft (12),
                     juce::Justification::centredLeft, false);
 
-        // Separator
-        g.setColour (accentColour.withAlpha (0.18f));
-        g.drawHorizontalLine (bounds.getY() + 24,
+        // Hairline separator below header
+        g.setColour (accentColour.withAlpha (0.20f));
+        g.drawHorizontalLine (bounds.getY() + kHdrH,
                                rf.getX() + 10.0f, rf.getRight() - 10.0f);
     }
 
-    // 2-px inner bevel: gradient from white (top-left) to black (bottom-right)
+    // Design Bible v2 multi-stage bevel:
+    // Layer 1 — Inner Highlight: sharp 1px #FFFFFF at 50% (top-left)
+    // Layer 2 — Outer Recess: 2px soft #000000 at 40% (bottom-right)
     juce::ColourGradient bevel (
-        juce::Colours::white.withAlpha (0.40f), rf.getX(),    rf.getY(),
-        juce::Colours::black.withAlpha (0.50f), rf.getRight(), rf.getBottom(), false);
+        juce::Colours::white.withAlpha (0.50f), rf.getX(),    rf.getY(),
+        juce::Colours::black.withAlpha (0.40f), rf.getRight(), rf.getBottom(), false);
     g.setGradientFill (bevel);
     g.drawRoundedRectangle (rf.reduced (0.5f), rad - 0.5f, 2.0f);
 }
 
-// ---------------------------------------------------------------------------
-// Paint — Stage 1 satin-chrome chassis with embedded module containers.
-// ---------------------------------------------------------------------------
+// ============================================================================
+//  paint — Phase 7 satin-chrome chassis, Pioneer-Blue module containers.
+// ============================================================================
 void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
 {
-    const juce::Colour cyberBlue = juce::Colour (kElecCyan);
-    const juce::Colour amber     = juce::Colour (kAmberOsc1);
-    const juce::Colour purple    = juce::Colour (kPurpleOsc2);
-    const juce::Colour green     = juce::Colour (kGreenSub);
+    const juce::Colour pionCyan  = juce::Colour (kElecCyan);
+    const juce::Colour pionBlue  = juce::Colour (kPioneerBlue);
+    const juce::Colour pionMid   = juce::Colour (kPioneerMid);
 
     // ── 1. Satin Silver chassis background ───────────────────────────────────
     juce::ColourGradient chassis (
@@ -319,27 +328,28 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
         g.drawHorizontalLine (y, 0.0f, (float) getWidth());
     }
 
-    // ── 2. Module containers ─────────────────────────────────────────────────
-    drawModuleContainer (g, { kOsc1X, kOsc1Y, kOsc1W, kOsc1H }, amber,   "OSC 1");
-    drawModuleContainer (g, { kSubX,  kSubY,  kSubW,  kSubH  }, green,   "SUB");
-    drawModuleContainer (g, { kOsc2X, kOsc2Y, kOsc2W, kOsc2H }, purple,  "OSC 2");
-    drawModuleContainer (g, { kRadarX, kRadarY, kRadarSz, kRadarSz }, cyberBlue, "SPATIAL");
-    drawModuleContainer (g, { kOutX,  kOutY,  kOutW,  kOutH  }, cyberBlue, "OUTPUT");
-    drawModuleContainer (g, { kAdsrX, kAdsrY, kAdsrW, kAdsrH }, cyberBlue, "ADSR");
+    // ── 2. Module containers — Pioneer-Blue palette ───────────────────────────
+    drawModuleContainer (g, { kOsc1X, kOsc1Y, kOsc1W, kOsc1H }, pionBlue,  "OSC 1");
+    drawModuleContainer (g, { kSubX,  kSubY,  kSubW,  kSubH  }, pionCyan,  "SUB");
+    drawModuleContainer (g, { kOsc2X, kOsc2Y, kOsc2W, kOsc2H }, pionMid,   "OSC 2");
+    drawModuleContainer (g, { kRadarX, kRadarY, kRadarSz, kRadarSz }, pionCyan, "SPATIAL");
+    drawModuleContainer (g, { kOutX,  kOutY,  kOutW,  kOutH  }, pionCyan,  "OUTPUT");
+    drawModuleContainer (g, { kAdsrX, kAdsrY, kAdsrW, kAdsrH }, pionCyan,  "ADSR");
 
     // ── 3. Output knob labels (VINTAGE / MASTER) ─────────────────────────────
     {
         constexpr int cx       = kOutX + kOutW / 2;
-        constexpr int knoY     = kOutY + (kOutH - kLarge) / 2;
+        constexpr int contentH = kLarge + 3 + 14;
+        constexpr int knoY     = kOutY + kHdrH + (kOutH - kHdrH - contentH) / 2;
         constexpr int lblY     = knoY + kLarge + 3;
         constexpr int vX       = cx - kLarge - 12;
         constexpr int mX       = cx + 12;
 
-        g.setFont (juce::FontOptions ("Courier New", 9.0f, juce::Font::bold));
-        g.setColour (cyberBlue.withAlpha (0.70f));
-        g.drawText ("VINTAGE", juce::Rectangle<int> (vX - 2, lblY, kLarge + 4, 12),
+        g.setFont (juce::FontOptions ("Courier New", 10.0f, juce::Font::bold));
+        g.setColour (pionCyan.withAlpha (0.75f));
+        g.drawText ("VINTAGE", juce::Rectangle<int> (vX - 2, lblY, kLarge + 4, 14),
                     juce::Justification::centred, false);
-        g.drawText ("MASTER",  juce::Rectangle<int> (mX - 2, lblY, kLarge + 4, 12),
+        g.drawText ("MASTER",  juce::Rectangle<int> (mX - 2, lblY, kLarge + 4, 14),
                     juce::Justification::centred, false);
     }
 
@@ -359,15 +369,14 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
     drawScrew (8,  getHeight() - 16);
     drawScrew (getWidth() - 16, getHeight() - 16);
 
-    // ── 5. Banner ─────────────────────────────────────────────────────────────
+    // ── 5. Top banner — OEL-90 display ───────────────────────────────────────
     const int atmoState = juce::jlimit (0, 4,
         (int) audioProcessor.apvts.getRawParameterValue ("atmosphere_state")->load());
     static const char* const kAtmoNames[] =
         { "RAINFOREST", "TEMPLE", "VALLEY", "CITY", "THE SILO" };
 
-    // Banner module container
     const auto bannerBounds = juce::Rectangle<int> (kPad, kPad, kW - kPad * 2, kBannerH - kPad * 2);
-    drawModuleContainer (g, bannerBounds, cyberBlue, nullptr);
+    drawModuleContainer (g, bannerBounds, pionCyan, nullptr);
 
     // Left panel — Preset display
     auto memPanel = juce::Rectangle<int> (
@@ -375,19 +384,19 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
         bannerBounds.getWidth() / 2 - 8,
         bannerBounds.getHeight() - 8);
 
-    g.setColour (juce::Colour (0xFF001A18));
+    g.setColour (juce::Colour (0xFF000F1E));
     g.fillRoundedRectangle (memPanel.toFloat(), 4.0f);
-    g.setColour (cyberBlue.withAlpha (0.30f));
+    g.setColour (pionCyan.withAlpha (0.30f));
     g.drawRoundedRectangle (memPanel.reduced (1).toFloat(), 4.0f, 1.0f);
 
-    g.setColour (cyberBlue.withAlpha (0.45f));
+    g.setColour (pionCyan.withAlpha (0.50f));
     g.setFont (juce::FontOptions ("Courier New", 9.0f, juce::Font::bold));
     g.drawText ("ORACLE-PAD  OEL-90",
                 juce::Rectangle<int> (memPanel.getX() + 8, memPanel.getY() + 5, 170, 15),
                 juce::Justification::centredLeft, false);
-    g.setColour (cyberBlue.withAlpha (0.22f));
+    g.setColour (pionCyan.withAlpha (0.22f));
     g.setFont (juce::FontOptions ("Courier New", 7.0f, juce::Font::plain));
-    g.drawText ("STAGE 1  ERGONOMIC",
+    g.drawText ("PHASE 7  CHROME-CORE",
                 juce::Rectangle<int> (memPanel.getX() + 8, memPanel.getY() + 22, 170, 12),
                 juce::Justification::centredLeft, false);
     {
@@ -395,10 +404,10 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
         auto readArea = juce::Rectangle<int> (
             memPanel.getX() + 178, memPanel.getY(),
             memPanel.getRight() - (memPanel.getX() + 182), memPanel.getHeight());
-        g.setColour (cyberBlue.withAlpha (0.18f));
+        g.setColour (pionCyan.withAlpha (0.18f));
         g.setFont (juce::FontOptions ("Courier New", 18.0f, juce::Font::bold));
         g.drawText (txt, readArea.reduced (2, 0), juce::Justification::centredLeft, false);
-        g.setColour (cyberBlue);
+        g.setColour (pionCyan);
         g.setFont (juce::FontOptions ("Courier New", 16.0f, juce::Font::bold));
         g.drawText (txt, readArea.reduced (2, 0), juce::Justification::centredLeft, false);
     }
@@ -410,22 +419,22 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
         bannerBounds.getWidth() / 2 - 8,
         bannerBounds.getHeight() - 8);
 
-    g.setColour (juce::Colour (0xFF001A18));
+    g.setColour (juce::Colour (0xFF000F1E));
     g.fillRoundedRectangle (atmoPanel.toFloat(), 4.0f);
-    g.setColour (cyberBlue.withAlpha (0.30f));
+    g.setColour (pionCyan.withAlpha (0.30f));
     g.drawRoundedRectangle (atmoPanel.reduced (1).toFloat(), 4.0f, 1.0f);
 
-    g.setColour (cyberBlue.withAlpha (0.45f));
+    g.setColour (pionCyan.withAlpha (0.50f));
     g.setFont (juce::FontOptions ("Courier New", 9.0f, juce::Font::bold));
     g.drawText ("ATMO ENGINE",
                 juce::Rectangle<int> (atmoPanel.getX() + 8, atmoPanel.getY() + 5, 110, 15),
                 juce::Justification::centredLeft, false);
-    g.setColour (juce::Colour (0xff004433));
+    g.setColour (pionBlue.withAlpha (0.35f));
     g.setFont (juce::FontOptions ("Courier New", 7.0f, juce::Font::plain));
     g.drawText ("ENCLOSURE SIM",
                 juce::Rectangle<int> (atmoPanel.getX() + 8, atmoPanel.getY() + 22, 110, 12),
                 juce::Justification::centredLeft, false);
-    g.setColour (cyberBlue.withAlpha (0.15f));
+    g.setColour (pionCyan.withAlpha (0.15f));
     g.drawVerticalLine (atmoPanel.getX() + 122,
                         (float) (atmoPanel.getY() + 5), (float) (atmoPanel.getBottom() - 5));
     {
@@ -433,31 +442,33 @@ void OraclePadAudioProcessorEditor::paint (juce::Graphics& g)
         auto readArea = juce::Rectangle<int> (
             atmoPanel.getX() + 128, atmoPanel.getY(),
             atmoPanel.getWidth() - 132, atmoPanel.getHeight());
-        g.setColour (cyberBlue.withAlpha (0.18f));
+        g.setColour (pionCyan.withAlpha (0.18f));
         g.setFont (juce::FontOptions ("Courier New", 18.0f, juce::Font::bold));
         g.drawText (txt, readArea.reduced (2, 0), juce::Justification::centred, false);
-        g.setColour (cyberBlue);
+        g.setColour (pionCyan);
         g.setFont (juce::FontOptions ("Courier New", 16.0f, juce::Font::bold));
         g.drawText (txt, readArea.reduced (2, 0), juce::Justification::centred, false);
-        // Atmosphere dots
+        // Atmosphere indicator dots
         const float dotY  = (float) (atmoPanel.getBottom() - 9);
         const float dotX0 = (float) (atmoPanel.getCentreX() - 20);
         for (int d = 0; d < 5; ++d)
         {
             const float dotX = dotX0 + (float) d * 10.0f;
             const float dr   = (d == atmoState) ? 2.5f : 1.8f;
-            g.setColour (d == atmoState ? cyberBlue : cyberBlue.withAlpha (0.22f));
+            g.setColour (d == atmoState ? pionCyan : pionCyan.withAlpha (0.22f));
             g.fillEllipse (dotX, dotY - dr, dr * 2.0f, dr * 2.0f);
         }
     }
 }
 
-// ---------------------------------------------------------------------------
-// Layout — Stage 1 full grid placement.
-// ---------------------------------------------------------------------------
+// ============================================================================
+//  resized — Phase 7 layout.
+//  kMicro=36, kLarge=70, kHdrH=20, kOutH=116, kAdsrY=577, kAdsrH=95.
+//  All inner Y offsets calculated from kHdrH to match the thin banner height.
+// ============================================================================
 void OraclePadAudioProcessorEditor::resized()
 {
-    // ── Banner buttons (y 0-65) ───────────────────────────────────────────────
+    // ── Banner buttons (y 0–65) ───────────────────────────────────────────────
     {
         const int btnY   = (kBannerH - 26) / 2;
         const int arrowY = (kBannerH - 22) / 2;
@@ -468,15 +479,15 @@ void OraclePadAudioProcessorEditor::resized()
         nextAtmoBtn.setBounds (kW - 30,       arrowY, 22, 22);
     }
 
-    // ── OSC 1 — 3×2 grid (x 8, y 73, w 330, h 165) ─────────────────────────
-    // Visible: Vol Morph Tilt / Spread Cutoff Res   (Mix hidden)
+    // ── OSC 1 — 3×2 grid (x 8, y 73, w 330, h 165) ──────────────────────────
+    // Visible: VOL MORPH TILT / SPRD CUT RES   (MIX hidden)
     {
-        constexpr int innerX = kOsc1X + 12;          // 20
-        constexpr int innerY = kOsc1Y + 26;           // 99
-        constexpr int gW     = kOsc1W - 24;           // 306
-        constexpr int gH     = kOsc1H - 38;           // 127
-        constexpr int slotW  = gW / 3;                // 102
-        constexpr int slotH  = gH / 2;                // 63
+        constexpr int innerX = kOsc1X + 12;
+        constexpr int innerY = kOsc1Y + kHdrH;            // 93
+        constexpr int gW     = kOsc1W - 24;               // 306
+        constexpr int gH     = kOsc1H - kHdrH - 12;       // 133
+        constexpr int slotW  = gW / 3;                    // 102
+        constexpr int slotH  = gH / 2;                    // 66
 
         juce::Slider* grid[6] = {
             &osc1VolKnob, &osc1MorphKnob, &osc1TiltKnob,
@@ -496,16 +507,16 @@ void OraclePadAudioProcessorEditor::resized()
             grid[i]->setBounds (kx, ky, kMicro, kMicro);
             lbls[i]->setBounds (kx - 4, ky + kMicro + 2, kMicro + 8, kLabelH);
         }
-        osc1MixKnob.setBounds (0, 0, 0, 0);  // hidden — attached for preset compat
+        osc1MixKnob.setBounds (0, 0, 0, 0);  // attached for preset compat, hidden
     }
 
-    // ── SUB module (x 346, y 73, w 186, h 165) ──────────────────────────────
+    // ── SUB module (x 346, y 73, w 186, h 165) ───────────────────────────────
     {
         constexpr int innerX = kSubX + 12;
-        constexpr int innerY = kSubY + 26;
-        constexpr int gW     = kSubW - 24;    // 162
-        constexpr int gH     = kSubH - 38;    // 127
-        constexpr int slotW  = gW / 2;        // 81
+        constexpr int innerY = kSubY + kHdrH;              // 93
+        constexpr int gW     = kSubW - 24;                 // 162
+        constexpr int gH     = kSubH - kHdrH - 12;         // 133
+        constexpr int slotW  = gW / 2;                     // 81
 
         const int ky = innerY + (gH - kMicro - kLabelH) / 2;
 
@@ -515,15 +526,15 @@ void OraclePadAudioProcessorEditor::resized()
         subLabels[1].setBounds (innerX + slotW + (slotW - kMicro) / 2 - 4, ky + kMicro + 2, kMicro + 8, kLabelH);
     }
 
-    // ── OSC 2 — 3×2 grid (x 8, y 246, w 524, h 165) ────────────────────────
-    // Visible: Vol Cutoff Res / Density Size Speed   (Jitter hidden)
+    // ── OSC 2 — 3×2 grid (x 8, y 246, w 524, h 165) ─────────────────────────
+    // Visible: VOL CUT RES / DENS SIZE SPD   (JITR hidden)
     {
         constexpr int innerX = kOsc2X + 12;
-        constexpr int innerY = kOsc2Y + 26;
-        constexpr int gW     = kOsc2W - 24;   // 500
-        constexpr int gH     = kOsc2H - 38;   // 127
-        constexpr int slotW  = gW / 3;         // 166
-        constexpr int slotH  = gH / 2;         // 63
+        constexpr int innerY = kOsc2Y + kHdrH;             // 266
+        constexpr int gW     = kOsc2W - 24;                // 500
+        constexpr int gH     = kOsc2H - kHdrH - 12;        // 133
+        constexpr int slotW  = gW / 3;                     // 166
+        constexpr int slotH  = gH / 2;                     // 66
 
         juce::Slider* grid[6] = {
             &osc2VolKnob, &osc2CutoffKnob, &osc2ResKnob,
@@ -531,7 +542,7 @@ void OraclePadAudioProcessorEditor::resized()
         };
         juce::Label* lbls[6] = {
             &osc2Labels[0], &osc2Labels[1], &osc2Labels[2],
-            &osc2Labels[3], &osc2Labels[4], &osc2Labels[6]  // skip [5]=JITR
+            &osc2Labels[3], &osc2Labels[4], &osc2Labels[6]
         };
 
         for (int i = 0; i < 6; ++i)
@@ -543,29 +554,33 @@ void OraclePadAudioProcessorEditor::resized()
             grid[i]->setBounds (kx, ky, kMicro, kMicro);
             lbls[i]->setBounds (kx - 4, ky + kMicro + 2, kMicro + 8, kLabelH);
         }
-        granJitterKnob.setBounds (0, 0, 0, 0);  // hidden
+        granJitterKnob.setBounds (0, 0, 0, 0);  // attached for preset compat, hidden
     }
 
     // ── RADAR (x 540, y 73, sz 372) ──────────────────────────────────────────
-    // Inner field with 12px inset from module edge
-    radarComponent.setBounds (kRadarX + 12, kRadarY + 26, kRadarSz - 24, kRadarSz - 38);
+    // Inner field: 12px side inset, kHdrH top inset, 12px bottom inset.
+    radarComponent.setBounds (kRadarX + 12, kRadarY + kHdrH,
+                               kRadarSz - 24, kRadarSz - kHdrH - 12);
 
-    // ── OUTPUT (x 540, y 453, w 372, h 88) ──────────────────────────────────
+    // ── OUTPUT (x 540, y 453, w 372, h 116) ──────────────────────────────────
+    // kLarge=70 dome knobs centred in space below the 20px header.
     {
-        constexpr int cx   = kOutX + kOutW / 2;
-        constexpr int knoY = kOutY + (kOutH - kLarge) / 2;
+        constexpr int cx       = kOutX + kOutW / 2;
+        constexpr int contentH = kLarge + 3 + 14;    // knob + gap + label row
+        constexpr int knoY     = kOutY + kHdrH + (kOutH - kHdrH - contentH) / 2;
         vintageModeKnob.setBounds (cx - kLarge - 12, knoY, kLarge, kLarge);
         masterGainKnob .setBounds (cx + 12,          knoY, kLarge, kLarge);
     }
 
-    // ── ADSR (x 8, y 549, w 904, h 63) ──────────────────────────────────────
-    // 4 knobs tight-left, 4:3 envelope monitor immediately to their right.
+    // ── ADSR (x 8, y 577, w 904, h 95) ──────────────────────────────────────
+    // Phase 7 ADSR clipping fix: kAdsrY=577, kAdsrH=95.
+    // Knobs + labels comfortably fit inside the module with clear bottom margin.
     {
-        constexpr int innerX  = kAdsrX + 12;
-        constexpr int innerY  = kAdsrY + 26;
-        constexpr int innerH  = kAdsrH - 34;   // available height for knobs
-        constexpr int slotW   = 52;
-        const int     knoY    = innerY + (innerH - kMicro - kLabelH) / 2;
+        constexpr int innerX = kAdsrX + 12;
+        constexpr int innerY = kAdsrY + kHdrH;            // 597
+        constexpr int innerH = kAdsrH - kHdrH - 8;        // 67 — plenty for kMicro=36 + kLabelH=16
+        constexpr int slotW  = 52;
+        const int     knoY   = innerY + (innerH - kMicro - kLabelH) / 2;
 
         juce::Slider* row[] = { &attackKnob, &decayKnob, &sustainKnob, &releaseKnob };
         for (int i = 0; i < 4; ++i)
@@ -575,10 +590,10 @@ void OraclePadAudioProcessorEditor::resized()
             adsrLabels[i].setBounds (kx - 4, knoY + kMicro + 2, kMicro + 8, kLabelH);
         }
 
-        // 4:3 envelope monitor — starts right of 4 knobs, fills remainder
+        // 4:3 envelope monitor — right of the 4 ADSR knobs, fills remainder
         constexpr int monitorX = innerX + 4 * slotW + 8;
-        const int monitorH = kAdsrH - 12;
-        const int monitorW = monitorH * 4 / 3;
+        const int     monitorH = kAdsrH - 12;
+        const int     monitorW = monitorH * 4 / 3;
         envelopeMonitor.setBounds (monitorX, kAdsrY + 6, monitorW, monitorH);
     }
 }
