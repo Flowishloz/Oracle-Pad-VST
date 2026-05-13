@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cmake --build \"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build\" --config Debug --target OraclePad_VST3)",
+      "Bash(findstr /i \"error warning C2 C3 C4 C5 C6 C7 C8 C9 LNK\")",
+      "Bash(findstr /v \"C4244 MSB3073 CUSTOMBUILD\")",
+      "Bash(Select-String -Pattern \"error C|error LNK|fatal error\")",
+      "Bash(Select-Object -First 30)",
+      "Bash(cmake -E copy_directory \"E:/DEVELOPMENT/AI/Oracle-Pad-VST/build/OraclePad_artefacts/Debug/VST3/OraclePad.vst3\" \"E:/Music/Plugins/VST3/OraclePad.vst3\")",
+      "Bash(git add *)"
+    ]
+  }
+}
