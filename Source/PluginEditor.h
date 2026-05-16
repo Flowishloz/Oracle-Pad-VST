@@ -111,11 +111,11 @@ private:
     juce::Label      atmoPresetLabel;
     juce::TextButton prevAtmoBtn { "<" }, nextAtmoBtn { ">" };
 
-    // ── OSC 1 — 3×2 knob grid (vol/morph/tune | tilt/spread/detune) ──────────
-    juce::Slider osc1VolKnob,   osc1MorphKnob,  osc1TuneKnob,
-                 osc1TiltKnob,  osc1SpreadKnob, osc1DetuneKnob;
-    juce::Label  osc1VolLbl,    osc1MorphLbl,   osc1TuneLbl,
-                 osc1TiltLbl,   osc1SpreadLbl,  osc1DetuneLbl;
+    // ── OSC 1 — 3-over-2 staggered grid (vol/morph/mix top | spread/cut bottom) ─
+    juce::Slider osc1VolKnob,   osc1MorphKnob,  osc1MixKnob,
+                 osc1SpreadKnob, osc1CutKnob;
+    juce::Label  osc1VolLbl,    osc1MorphLbl,   osc1MixLbl,
+                 osc1SpreadLbl, osc1CutLbl;
 
     // ── Sub section ───────────────────────────────────────────────────────────
     juce::Slider subLevelKnob, subShapeKnob, subOctaveKnob;
@@ -141,7 +141,7 @@ private:
 
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     std::unique_ptr<SliderAttachment>
-        aOsc1Vol, aOsc1Morph, aOsc1Tilt, aOsc1Spread,
+        aOsc1Vol, aOsc1Morph, aOsc1Mix, aOsc1Cut, aOsc1Spread,
         aSubLevel, aSubShape, aSubOctave,
         aGranDensity, aGranSize,
         aAdsrA, aAdsrD, aAdsrS, aAdsrR,

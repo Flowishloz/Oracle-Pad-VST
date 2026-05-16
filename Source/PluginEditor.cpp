@@ -137,25 +137,23 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
     // ── RadarComponent ────────────────────────────────────────────────────────
     addAndMakeVisible (radarComponent);
 
-    // ── OSC 1 knobs — 4 wired + 2 reserved (tune/detune) ─────────────────────
+    // ── OSC 1 knobs — 5 wired: vol/morph/mix/spread/cut ──────────────────────
     setupKnob (osc1VolKnob,    "Osc 1 volume");
-    setupKnob (osc1MorphKnob,  "Wavetable morph: sine → square");
-    setupKnob (osc1TuneKnob,   "Osc 1 coarse tune (semitones)");
-    setupKnob (osc1TiltKnob,   "Stereo tilt");
-    setupKnob (osc1SpreadKnob, "Stereo spread");
-    setupKnob (osc1DetuneKnob, "Osc 1 fine detune (cents)");
+    setupKnob (osc1MorphKnob,  "Juno pulse width morph (0=35% pw, 1=65% pw)");
+    setupKnob (osc1MixKnob,    "VA blend: sine → saw+pulse with micro-detune");
+    setupKnob (osc1SpreadKnob, "Per-voice stereo spread");
+    setupKnob (osc1CutKnob,    "Osc 1 low-pass filter cutoff");
     setupLabel (osc1VolLbl,    "VOL");
-    setupLabel (osc1MorphLbl,  "MORPH");
-    setupLabel (osc1TuneLbl,   "TUNE");
-    setupLabel (osc1TiltLbl,   "TILT");
+    setupLabel (osc1MorphLbl,  "MRPH");
+    setupLabel (osc1MixLbl,    "MIX");
     setupLabel (osc1SpreadLbl, "SPRD");
-    setupLabel (osc1DetuneLbl, "FINE");
+    setupLabel (osc1CutLbl,    "CUT");
 
     aOsc1Vol    = std::make_unique<SliderAttachment> (p.apvts, "osc1_vol",    osc1VolKnob);
     aOsc1Morph  = std::make_unique<SliderAttachment> (p.apvts, "osc1_morph",  osc1MorphKnob);
-    aOsc1Tilt   = std::make_unique<SliderAttachment> (p.apvts, "osc1_tilt",   osc1TiltKnob);
+    aOsc1Mix    = std::make_unique<SliderAttachment> (p.apvts, "osc1_mix",    osc1MixKnob);
+    aOsc1Cut    = std::make_unique<SliderAttachment> (p.apvts, "osc1_cut",    osc1CutKnob);
     aOsc1Spread = std::make_unique<SliderAttachment> (p.apvts, "osc1_spread", osc1SpreadKnob);
-    // osc1TuneKnob / osc1DetuneKnob — reserved, no APVTS params yet
 
     // ── Sub oscillator knobs ──────────────────────────────────────────────────
     setupKnob (subLevelKnob,  "Sub oscillator level");
@@ -165,9 +163,9 @@ OraclePadAudioProcessorEditor::OraclePadAudioProcessorEditor (OraclePadAudioProc
     setupLabel (subShapeLbl,  "SHPE");
     setupLabel (subOctaveLbl, "OCT");
 
-    aSubLevel  = std::make_unique<SliderAttachment> (p.apvts, "sub_level",  subLevelKnob);
-    aSubShape  = std::make_unique<SliderAttachment> (p.apvts, "sub_shape",  subShapeKnob);
-    aSubOctave = std::make_unique<SliderAttachment> (p.apvts, "sub_octave", subOctaveKnob);
+    aSubLevel  = std::make_unique<SliderAttachment> (p.apvts, "subVolume", subLevelKnob);
+    aSubShape  = std::make_unique<SliderAttachment> (p.apvts, "subShape",  subShapeKnob);
+    aSubOctave = std::make_unique<SliderAttachment> (p.apvts, "subOctave", subOctaveKnob);
 
     // ── OSC 2 granular control panel — 7 knobs below waveform display ─────────
     setupKnob (osc2VolKnob,     "Osc 2 / Granular output volume");
@@ -246,8 +244,8 @@ OraclePadAudioProcessorEditor::~OraclePadAudioProcessorEditor()
     stopTimer();
     setLookAndFeel (nullptr);
 
-    for (auto* s : { &osc1VolKnob,    &osc1MorphKnob,   &osc1TuneKnob,
-                     &osc1TiltKnob,   &osc1SpreadKnob,  &osc1DetuneKnob,
+    for (auto* s : { &osc1VolKnob,    &osc1MorphKnob,   &osc1MixKnob,
+                     &osc1SpreadKnob, &osc1CutKnob,
                      &subLevelKnob,   &subShapeKnob,    &subOctaveKnob,
                      &osc2VolKnob,    &osc2CutoffKnob,  &osc2ResKnob,
                      &granDensityKnob, &granSizeKnob,   &granJitterKnob, &granSpeedKnob,
@@ -359,7 +357,9 @@ void OraclePadAudioProcessorEditor::resized()
         osc2Knob (granSpeedKnob,   granSpeedLbl,    6);
     }
 
-    // ── OSC 1: 3×2 knob grid (vol/morph/tune | tilt/spread/detune) ───────────
+    // ── OSC 1: 3-over-2 staggered grid ───────────────────────────────────────
+    // Top row  (3 knobs): VOL / MORPH / MIX  — columns 0,1,2
+    // Bottom row (2 knobs): SPREAD / CUT — centered under top 3 at columns 0.5,1.5
     {
         const int ix = kOsc1X + 8;
         const int iy = kOsc1Y + 22;
@@ -368,20 +368,29 @@ void OraclePadAudioProcessorEditor::resized()
         const int ox = (cw - kMicro) / 2;
         const int oy = (ch - kMicro - kLblH - 2) / 2;
 
-        auto osc1Knob = [&](juce::Slider& s, juce::Label& l, int col, int row)
+        auto topKnob = [&](juce::Slider& s, juce::Label& l, int col)
         {
             const int kx = ix + col * cw + ox;
-            const int ky = iy + row * ch + oy;
+            const int ky = iy + oy;
             s.setBounds (kx, ky,              kMicro, kMicro);
             l.setBounds (kx, ky + kMicro + 1, kMicro, kLblH);
         };
 
-        osc1Knob (osc1VolKnob,    osc1VolLbl,    0, 0);
-        osc1Knob (osc1MorphKnob,  osc1MorphLbl,  1, 0);
-        osc1Knob (osc1TuneKnob,   osc1TuneLbl,   2, 0);
-        osc1Knob (osc1TiltKnob,   osc1TiltLbl,   0, 1);
-        osc1Knob (osc1SpreadKnob, osc1SpreadLbl, 1, 1);
-        osc1Knob (osc1DetuneKnob, osc1DetuneLbl, 2, 1);
+        auto botKnob = [&](juce::Slider& s, juce::Label& l, int pos)
+        {
+            // pos 0 → column 0.5, pos 1 → column 1.5 (staggered midpoints)
+            const int kx = ix + cw / 2 + pos * cw + ox;
+            const int ky = iy + ch + oy;
+            s.setBounds (kx, ky,              kMicro, kMicro);
+            l.setBounds (kx, ky + kMicro + 1, kMicro, kLblH);
+        };
+
+        topKnob (osc1VolKnob,   osc1VolLbl,   0);
+        topKnob (osc1MorphKnob, osc1MorphLbl, 1);
+        topKnob (osc1MixKnob,   osc1MixLbl,   2);
+
+        botKnob (osc1SpreadKnob, osc1SpreadLbl, 0);
+        botKnob (osc1CutKnob,    osc1CutLbl,    1);
     }
 
     // ── SUB: 3 knobs in a centred horizontal strip ────────────────────────────

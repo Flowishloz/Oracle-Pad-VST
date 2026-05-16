@@ -4,20 +4,25 @@
 #include <algorithm>
 
 // ============================================================================
-// APVTS parameter layout — 24 parameters (ground truth for all UI attachments).
+// APVTS parameter layout — 25 parameters (ground truth for all UI attachments).
 // ============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout OraclePadAudioProcessor::createParameterLayout()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_vol",    "Osc 1 Vol",  0.0f, 1.0f,   0.8f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_morph",  "Morph",      0.0f, 1.0f,   0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_tilt",   "Tilt",       0.0f, 1.0f,   0.5f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_spread", "Spread",     0.0f, 1.0f,   0.2f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_vol",    "Osc 1 Vol",  0.0f,   1.0f,     0.8f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_morph",  "Morph",      0.0f,   1.0f,     0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_mix",    "Mix",        0.0f,   1.0f,     0.0f));
+    {
+        juce::NormalisableRange<float> cutRange (20.0f, 20000.0f);
+        cutRange.setSkewForCentre (1000.0f);
+        params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_cut", "Cut", cutRange, 20000.0f));
+    }
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("osc1_spread", "Spread",     0.0f,   1.0f,     0.2f));
 
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("sub_level",   "Sub Level",  0.0f, 1.0f,   0.5f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> ("sub_shape",   "Sub Shape",  0.0f, 1.0f,   0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterInt>   ("sub_octave",  "Sub Octave", -2,   0,      -1));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("subVolume", "Sub Volume", 0.0f, 1.0f, 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("subShape",  "Sub Shape",  0.0f, 1.0f, 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> ("subOctave", "Sub Octave", 0.0f, 1.0f, 0.0f));
 
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("gran_density",  "Density",   1.0f,  100.0f, 20.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> ("gran_size",     "Size",      0.01f, 0.5f,   0.1f));
@@ -95,6 +100,9 @@ void OraclePadAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBl
     vintageProc_.prepare      (sampleRate, sz);
 
     masterGate_.setSampleRate (sampleRate);
+
+    subCrossLPF_[0].prepare (120.0f, (float)sampleRate);
+    subCrossLPF_[1].prepare (120.0f, (float)sampleRate);
 }
 
 void OraclePadAudioProcessor::releaseResources()
@@ -147,6 +155,7 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     p.sustain = apvts.getRawParameterValue ("adsr_sustain")->load();
     p.release = apvts.getRawParameterValue ("adsr_release")->load();
     masterGate_.setParameters (p);
+    subOsc_.subADSR.setParameters (p);  // sub envelope tracks shared A/D/S/R values
 
     // ── MIDI event dispatch ─────────────────────────────────────────────────
     for (const auto meta : midiMessages)
@@ -156,43 +165,61 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         {
             const int   note = m.getNoteNumber();
             const float freq = (float)m.getMidiNoteInHertz (note);
+
+            // Find a free voice; if all 8 are active, steal round-robin.
+            OracleVoice* target = nullptr;
             for (auto& v : voices)
+                if (!v.isActive()) { target = &v; break; }
+
+            if (target == nullptr)
             {
-                if (!v.isActive())
-                {
-                    v.start (note, freq, getSampleRate(), wavetableSize, p);
-                    break;
-                }
+                target = &voices[rrIdx_];
+                rrIdx_ = (rrIdx_ + 1) % numVoices;
             }
-            subOsc_.noteOn  (note);
+            target->start (note, freq, getSampleRate(), wavetableSize, p);
+
+            subOsc_.noteOn      (note);
             granEngine_.setNote (note);
             masterGate_.noteOn();
         }
         else if (m.isNoteOff())
         {
-            for (auto& v : voices) v.release();
-            subOsc_.noteOff (m.getNoteNumber());
+            // Only release the voice(s) holding this specific note.
+            const int note = m.getNoteNumber();
+            for (auto& v : voices)
+                if (v.getNote() == note)
+                    v.release();
+            subOsc_.noteOff (note);
             masterGate_.noteOff();
         }
     }
 
-    // ── OSC 1: wavetable voices → oscBuf_ ──────────────────────────────────
+    // ── OSC 1: Anchor VA engine → oscBuf_ ──────────────────────────────────
+    const float mix     = apvts.getRawParameterValue ("osc1_mix")   ->load();
     const float morph   = apvts.getRawParameterValue ("osc1_morph") ->load();
-    const float tilt    = apvts.getRawParameterValue ("osc1_tilt")  ->load();
+    const float cutHz   = apvts.getRawParameterValue ("osc1_cut")   ->load();
     const float spread  = apvts.getRawParameterValue ("osc1_spread")->load();
     const float osc1Vol = apvts.getRawParameterValue ("osc1_vol")   ->load();
+    const float sr_f    = (float)getSampleRate();
 
     for (int s = 0; s < numSamples; ++s)
     {
         float l = 0.0f, r = 0.0f;
         for (auto& v : voices)
         {
-            auto [vl, vr] = v.renderStereo (osc1Wavetables[0], osc1Wavetables[1],
-                                            morph, tilt, spread);
+            auto [vl, vr] = v.renderStereo (mix, morph, spread, cutHz, sr_f);
             l += vl;  r += vr;
         }
         oscBuf_.addSample (0, s, l * osc1Vol);
         oscBuf_.addSample (1, s, r * osc1Vol);
+    }
+
+    // ── Spatial panning: Radar X-coordinate steers Osc 1 stereo field ──────
+    {
+        const float spatX  = apvts.getRawParameterValue ("spatial_x")->load();
+        const float panAng = spatX * juce::MathConstants<float>::halfPi;
+        oscBuf_.applyGain (0, 0, numSamples, std::cos (panAng));
+        oscBuf_.applyGain (1, 0, numSamples, std::sin (panAng));
     }
 
     // ── OSC 2: granular render into isolated granBuf_ ──────────────────────
@@ -213,9 +240,10 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
     // ── ADSR Gating: route granular to Main Pad, sub to Sub Path ───────────
     // Gated granular merges into oscBuf_ (Main Pad Path).
     // Gated sub stays isolated in subBuf_ to bypass Vintage + Atmosphere.
-    const float subL = apvts.getRawParameterValue ("sub_level")->load();
-    const float subS = apvts.getRawParameterValue ("sub_shape")->load();
-    subOsc_.setOctaveOffset ((int)apvts.getRawParameterValue ("sub_octave")->load());
+    const float subV   = apvts.getRawParameterValue ("subVolume")->load();
+    const float subS   = apvts.getRawParameterValue ("subShape") ->load();
+    const float rawOct = apvts.getRawParameterValue ("subOctave")->load();
+    subOsc_.setOctaveOffset (rawOct <= 0.5f ? -2 : -1);
 
     for (int s = 0; s < numSamples; ++s)
     {
@@ -224,9 +252,18 @@ void OraclePadAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer,
         oscBuf_.addSample (0, s, granBuf_.getSample (0, s) * env);
         oscBuf_.addSample (1, s, granBuf_.getSample (1, s) * env);
 
-        const float subOut = subOsc_.processSample (subL, subS) * env;
-        subBuf_.addSample (0, s, subOut);
-        subBuf_.addSample (1, s, subOut);
+        // subADSR is internal to processSample — do NOT multiply by env again.
+        // 0.15f hard ceiling: sub headroom is deliberately restricted; usable
+        // range lives below 40% of the knob. Not unity gain by design.
+        const float subOut = subOsc_.processSample (subV, subS) * 0.15f;
+
+        // 120 Hz split: HPF = input − LPF(input); sum = kSubCeiling × subOut.
+        // Low band → hard mono centre; high band (saturated harmonics) → stereo.
+        const float lowL    = subCrossLPF_[0].process (subOut);
+        const float lowR    = subCrossLPF_[1].process (subOut);
+        const float monoLow = (lowL + lowR) * 0.5f;
+        subBuf_.addSample (0, s, monoLow + (subOut - lowL));
+        subBuf_.addSample (1, s, monoLow + (subOut - lowR));
     }
 
     // ── Main Pad Path: oscBuf_ → output buffer → master gain ───────────────
