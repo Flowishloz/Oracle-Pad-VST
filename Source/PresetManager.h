@@ -35,7 +35,6 @@ public:
         xml->setAttribute ("presetName", name.trim());
         if (! xml->writeTo (file)) return false;
         currentPresetName = name.trim();
-        // Sync index to the saved file's position in the sorted list.
         auto files = getPresetFiles();
         for (int i = 0; i < files.size(); ++i)
             if (files[i].getFileNameWithoutExtension() == currentPresetName)
@@ -58,7 +57,6 @@ public:
         auto files = getPresetFiles();
         if (files.isEmpty()) return;
         const int count = files.size();
-        // Positive modulo handles negative delta and -1 init index safely.
         const int next = ((currentPresetIndex + delta) % count + count) % count;
         if (loadPreset (files[next]))
             currentPresetIndex = next;
