@@ -1,0 +1,47 @@
+ORACLE PAD VST: MASTER ARCHITECTURE & DSP BLUEPRINT
+
+**Vibe:** A Y2K cyber-nostalgic synthesizer housed in a brushed-aluminum interface, featuring a glowing, low-refresh-rate "Cyber Blue" display. 
+**Philosophy:** Designed specifically for 90s Intelligent Jungle and Ambient DnB. It rejects high-CPU "clinical perfection" by utilizing baked-in, heuristic approximations of psychoacoustic physics derived EXCLUSIVELY from the Blauert Spatial Research Library. It is ultra-lightweight, phase-safe, and standalone—built for pure vibe and instant inspiration.
+
+---
+
+### 1. THE DUAL-DNA OSCILLATOR WING (LEFT WING)
+The OEL-90 strips away the overwhelming parameters of modern synths, focusing entirely on a curated hybrid architecture to achieve 90s warmth and grit. 
+
+* **OSC 1 (The Anchor - Wavetable/VA):** A stable, phase-locked virtual analog engine. It provides the core harmonic foundation using classic waves like the 'Alpha Juno' pulse, drifting saws, and deep sub-sines.
+* **OSC 2 (The Soul - Sample/Granular):** A dedicated sampling engine that allows users to load vintage chord stabs or textures. It features a Granular "Freeze" function to stretch short samples into endless ambient washes, and a hardcoded "Vintage Mode" that introduces 12-bit aliasing.
+* **The Controls:** Restricted to three tactile parameters: Shape (Waveform/Sample select), Pitch/Octave, and Spread.
+* **Agent DSP Directive:** The "Spread" control must utilize the math from `/Reference/DSP_and_Phase` (specifically the Group Delay Distortions papers) to create a phase-safe width that smears the sound into "90s lushness" without phase cancellation.
+
+### 2. THE SPATIAL AUDIO BOX (RIGHT WING)
+There are no traditional volume sliders or panning knobs. Users balance sound by moving two 3D spheres (representing OSC 1 and OSC 2) around a central "Head" UI.
+
+* **Distance = Volume & Haze:** Dragging a sphere away lowers volume while pushing it back into an algorithmic, 90s-style "grainy" early reflection engine.
+* **Elevation = Blauert's Notches:** Moving a sphere "up" engages baked-in EQ notches (e.g., 7.2kHz to 8kHz) that trick the brain's "Pinna" cues into perceiving physical height. 
+* **Boundary Selector:** Dictates the acoustic limits and early reflections. Modes: Forest (Diffused/Infinite), Valley (Grand Delay), Temple (Cathedral Haze), Hut (Woody/Boxy), Basement (Industrial Grit).
+* **Agent DSP Directive:** All 3D math MUST be pulled from `/Reference/Binaural_and_HRTF` (for the elevation/HRTF filters) and `/Reference/Space_and_Reverb` (for the Boundary Selector reflections). The 1997 Revised Edition is the absolute source of truth.
+
+### 3. THE WEATHER ENGINE (CENTER CONSOLE)
+Replaces the standard "White Noise" oscillator with a massive, knurled aluminum knob labeled "Weather" dictating environmental physics.
+
+* **Environmental Foley:** Switching modes injects organic background layers (rainforest crickets, summer night wind, winter storms).
+* **The Sandpaper "Grit" Scale:** Dictates the underlying noise floor, from P60 (Harsh, 12-bit industrial crunch) to P800 (Ethereal, high-shelf silk and tape hiss).
+* **Atmospheric Absorption (ANSI S1.26):** Active high-frequency roll-off of the Spatial Box. "Humid Jungle" allows high frequencies to travel; "Winter Haze" aggressively cuts crispness.
+* **Agent DSP Directive:** Refer to `/Reference/Music_and_Perception` to ensure the noise floor does not mask the musicality of the pad (leveraging the Precedence Effect for Noise Bursts).
+
+### 4. THE ORACLE BOX (BOTTOM BAR)
+The intelligence center, designed to remove the barrier of music theory so the user focuses entirely on texture.
+
+* **The "Listen" Button:** Briefly analyzes the DAW's main bus to detect the key of the current track.
+* **Scale Lock:** Locks the synthesizer to era-appropriate scales (Phrygian, Dorian, Lydian).
+* **The Happy Accident Arp:** A generative, syncopated rhythm engine weighted toward the 1st, 3rd, and 7th notes of the locked scale. Guarantees perfect harmonization regardless of MIDI input.
+
+### 5. THE OEL VISUALIZER (CENTER DISPLAY)
+The visual heart of the synth. A deep-blue, pixelated 3D display capped at a nostalgic 20 FPS to emulate phosphor ghosting.
+
+* **Reactive Feedback:** Displays pixelated rain, stars, or heat haze depending on Weather. 3D geometric grids warp and pulse to exact frequencies and Arp rhythms.
+* **Agent UI Directive:** Must use low-overhead graphics processing (JUCE OpenGL or equivalent) to keep CPU load minimal. 
+
+---
+**MASTER AGENT DIRECTIVE:**
+This Master Plan is your architectural boundary. Do not hallucinate generic reverb algorithms or basic panning. You are building a psychoacoustic simulator. Whenever calculating filter coefficients, HRTF notches, or group delay, your specialist agents MUST pull the mathematical formulas directly from the categorized "Sniper Nests" in the `/Reference/` library.

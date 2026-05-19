@@ -1,0 +1,1 @@
+This project uses a terminal-based CMake workflow. VS Code IntelliSense often reports false-positive 'header not found' errors (red squiggles). These must be ignored. Never attempt to fix these errors or modify CMakeLists.txt unless I explicitly ask. Always rely on the cmake --build build output as the source of truth for build success.
